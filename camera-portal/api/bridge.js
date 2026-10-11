@@ -17,6 +17,18 @@ export default async function handler(req,res){
  const ticket=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('nourish-camera='))?.slice(15);
  const [expiry,sig]=String(ticket||'').split('.');
  if(!process.env.FRIDGE_DEVICE_KEY||!/^\d+$/.test(expiry||'')||Number(expiry)<=Date.now()||!equal(sig,signature(expiry))){res.status(401).json({error:'Connect this fridge device first'});return;}
+ if(path==='preview'&&req.method==='GET'){
+  const expires=String(Date.now()+90000);
+  const base=new URL(process.env.FRIDGE_CAMERA_BASE_URL);
+  base.protocol=base.protocol==='https:'?'wss:':'ws:';
+  const urls={};
+  for(const id of ['front','shelf']){
+   const path='/preview/'+id;
+   const sig=createHmac('sha256',process.env.FRIDGE_DEVICE_KEY).update(path+'.'+expires).digest('hex');
+   const url=new URL(path,base);url.searchParams.set('expires',expires);url.searchParams.set('signature',sig);urls[id]=url.toString();
+  }
+  res.status(200).json({urls});return;
+ }
  const get=['state','frame/front','frame/shelf','stream/front','stream/shelf'],post=['begin','finish','say','audit'];
  if(!(req.method==='GET'?get: req.method==='POST'?post:[]).includes(path)){res.status(404).json({error:'Not found'});return;}
  const streaming=path.startsWith('stream/');

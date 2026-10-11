@@ -61,10 +61,20 @@ class FridgeWebUI:
                             time.sleep(max(0,1/8-(time.monotonic()-started)))
                     except (BrokenPipeError,ConnectionResetError,OSError):pass
                     return
-                if self.path in ('/frame/front','/frame/shelf'):
+                if self.path in ('/frame/front','/frame/shelf','/preview/front','/preview/shelf'):
                     camera=ui.camera if self.path.endswith('front') else ui.shelf_camera
                     frame=camera.get_frame() if camera else None
                     if frame is None:return self.send(503,{'error':'Camera unavailable'})
+                    if self.path.startswith('/preview/'):
+                        height,width=frame.shape[:2]
+                        if width>640:frame=cv2.resize(frame,(640,round(height*640/width)))
+                        self.send_response(200)
+                        self.send_header('Content-Type','image/jpeg')
+                        self.send_header('Cache-Control','no-store')
+                        self.send_header('X-Frame-At',str(camera._frame_at))
+                        ok,image=cv2.imencode('.jpg',frame,[cv2.IMWRITE_JPEG_QUALITY,45])
+                        payload=image.tobytes() if ok else b''
+                        self.send_header('Content-Length',str(len(payload)));self.end_headers();self.wfile.write(payload);return
                     ok,image=cv2.imencode('.jpg',frame,[cv2.IMWRITE_JPEG_QUALITY,70])
                     return self.send(200,image.tobytes(),'image/jpeg') if ok else self.send(503,{'error':'Frame unavailable'})
                 self.send(404,{'error':'not_found'})

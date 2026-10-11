@@ -525,7 +525,7 @@ def main() -> int:
             args.inventory_camera if shelf_camera else args.camera,
             gemini=backup,
             interval_s=args.audit_interval,
-            expected_provider=lambda: [{"name": r["canonical_name"], "count": int(r["recorded_quantity"])} for r in data.inventory() if r["recorded_quantity"] > 0],
+            expected_provider=lambda: [{"name": r["canonical_name"], "count": int(r["recorded_quantity"])} for r in data.inventory() if int(r["recorded_quantity"]) > 0],
             # With one camera, "Check shelf now" looks at whatever the donor camera shows.
             capture=(shelf_camera or camera).get_frame,
         )

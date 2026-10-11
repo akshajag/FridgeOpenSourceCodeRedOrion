@@ -50,7 +50,7 @@ class TestBench:
         self.auditor = auditor
         self.data = FridgeData()
         if self.auditor is not None:
-            self.auditor.expected_provider = lambda: [{"name": r["canonical_name"], "count": int(r["recorded_quantity"])} for r in self.data.inventory() if r["recorded_quantity"] > 0]
+            self.auditor.expected_provider = lambda: [{"name": r["canonical_name"], "count": int(r["recorded_quantity"])} for r in self.data.inventory() if int(r["recorded_quantity"]) > 0]
         self._donation_id = str(uuid.uuid4())
         self._sensor_updates = queue.Queue()
         self._sensor_stop = threading.Event()
@@ -481,7 +481,7 @@ class TestBench:
     def _sync_inventory(self):
         items=self.data.inventory()
         with self.auditor._lock:
-            self.auditor.expected=[{'name':r['canonical_name'],'count':r['recorded_quantity']} for r in items if r['recorded_quantity']>0]
+            self.auditor.expected=[{'name':r['canonical_name'],'count':int(r['recorded_quantity'])} for r in items if int(r['recorded_quantity'])>0]
 
     def _save_audit(self,report):
         try:

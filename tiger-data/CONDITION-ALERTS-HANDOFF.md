@@ -73,7 +73,7 @@ Moisture wet-trigger test confirmed: dry baseline 0; wet-contact readings
 37–118 raw, with the alert activated at 10 or higher for two seconds.
 Keep 10 as the wet-alert threshold, per Saleh's preference. Values 1–9 may
 indicate slight contact wetness but do not trigger the alert. Dry recovery
-still needs confirmation; this is not a humidity calibration.
+was confirmed at raw 0; this is not a humidity calibration.
 
 If demonstrating an operational room-temperature fridge instead of this
 freezer, the freezer baseline must be replaced after collecting a new normal
@@ -83,3 +83,7 @@ do not stop the serial uploader. No auto-rebaselining occurs during a fault.
 Temperature exposure calculations remain available at the separate `/thermal`
 endpoint, using its independently configured absolute threshold. Changing that
 page's thermal threshold does not change these relative demo alert thresholds.
+
+Air vapor test confirmed: pre-test raw 41–42, peak 260, alert triggered at
+81 for two seconds, then cleared after removal with recovery raw 48.
+This verifies vapor response and alert clearance, not spoilage detection.

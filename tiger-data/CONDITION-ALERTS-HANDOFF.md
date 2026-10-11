@@ -69,6 +69,12 @@ the air demo bring a sanitizer-damp tissue near the sensor away from food; do
 not spray directly into the fridge or onto electronics. Check that normal
 readings resume after removing each stimulus.
 
+Moisture wet-trigger test confirmed: dry baseline 0; wet-contact readings
+37–118 raw, with the alert activated at 10 or higher for two seconds.
+Keep 10 as the wet-alert threshold, per Saleh's preference. Values 1–9 may
+indicate slight contact wetness but do not trigger the alert. Dry recovery
+still needs confirmation; this is not a humidity calibration.
+
 If demonstrating an operational room-temperature fridge instead of this
 freezer, the freezer baseline must be replaced after collecting a new normal
 reference. Edit the baseline/threshold configuration and restart the data API;

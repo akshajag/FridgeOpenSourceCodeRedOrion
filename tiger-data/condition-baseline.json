@@ -5,6 +5,16 @@
   "baseline_end": "2026-10-11T03:50:00.000Z",
   "sample_count": 174,
   "status": "provisional_pre_demo_reference",
+  "moisture_test": {
+    "status": "wet_trigger_confirmed_dry_recovery_pending",
+    "observed_at": "2026-10-11T04:36:37.374Z",
+    "dry_raw": 0,
+    "wet_observed_min_raw": 37,
+    "wet_observed_peak_raw": 118,
+    "alert_trigger_raw": 10,
+    "persistence_seconds": 2,
+    "interpretation": "Positive readings indicate possible wet contact; alert at 10 or higher for two seconds. This measures contact wetness, not humidity or food safety."
+  },
   "temperature_c": -17.2,
   "moisture_raw": 0,
   "air_quality_raw": 51,

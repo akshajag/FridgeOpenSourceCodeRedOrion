@@ -1,7 +1,10 @@
 import sys, types, unittest, uuid
 from unittest.mock import Mock
 # Adapter tests need no credentials or third-party runtime.
-sys.modules.setdefault('dotenv', types.SimpleNamespace(dotenv_values=lambda *a: {}))
+try:
+    import dotenv
+except ImportError:
+    sys.modules.setdefault('dotenv', types.SimpleNamespace(dotenv_values=lambda *a: {}))
 from fridge_data import FridgeData
 
 class DataTests(unittest.TestCase):

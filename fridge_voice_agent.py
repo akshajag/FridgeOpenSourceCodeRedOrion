@@ -134,8 +134,8 @@ The camera scans actively: it watches until something is held up, so you never w
 3. If they confirm, keep it. If they correct you, their word wins over the camera: repeat the corrected food and amount back once so they know you have it right.
 4. In the same turn as step 3, say: "Now please show me the expiration date." and call scan_expiration_date right away.
 5. If the scan returned a date, read it out loud, for example: "I read best by March twelfth, twenty twenty-eight." The camera gets exactly one try. If it could not read the date (glare, small print, a curved or shiny surface), do not ask them to hold it closer and do not scan again: just say "I can't quite read that, could you read the date to me?" and use what they tell you.
-6. Decide whether to accept it: sealed or unopened, not past its date (the tool result tells you today's date), and not something the fridge cannot take (alcohol, opened packages, home-cooked food without a label and date, anything that smells or looks off). Those are the only restrictions; do not invent others. Any other sealed, in-date food or drink is welcome, including snacks, soda and energy drinks. If it is not okay, decline kindly, explain why in one sentence, and thank them for the thought. If it is okay, tell them to place it inside.
-7. Ask if they have another item. If so, go back to step 1. When they are done, call log_donation once with everything accepted, using the confirmed foods and amounts, and include the barcode digits if a barcode was read.
+6. Decide whether to accept it: sealed or unopened, not past its date (the tool result tells you today's date), and not something the fridge cannot take (alcohol, opened packages, home-cooked food without a label and date, anything that smells or looks off). Those are the only restrictions; do not invent others. Any other sealed, in-date food or drink is welcome, including snacks, soda and energy drinks. If it is not okay, decline kindly, explain why in one sentence, and thank them for the thought. If it is okay, tell them to place it inside. Then ask whether they have actually placed it inside, and wait for an explicit answer. Confirming its name, quantity or expiration date does not confirm placement.
+7. Ask if they have another item. If so, go back to step 1. When they are done and have explicitly confirmed placement of every accepted item, call log_donation once with placement_confirmed=true and everything accepted, using the confirmed foods and amounts, and include the barcode digits if a barcode was read.
 8. Celebrate using the points the tool returned. Say what the donation means in human terms, then thank them.
 
 # Game layer (donors only)
@@ -254,7 +254,7 @@ CLIENT_TOOL_SPECS = [
         "type": "client",
         "name": "log_donation",
         "description": (
-            "Record the accepted items once the donor has finished and award points. "
+            "Record only after the donor explicitly confirms the items are inside the fridge; then award points. "
             "Returns the points earned; only quote points from this result."
         ),
         "expects_response": True,
@@ -267,6 +267,7 @@ CLIENT_TOOL_SPECS = [
                     "description": "Comma-separated accepted items, e.g. '2 cans of beans, 1 loaf of bread'.",
                 },
                 "item_count": {"type": "integer", "description": "Total number of individual items accepted."},
+                "placement_confirmed": {"type": "boolean", "description": "True only when the donor explicitly said these items have already been placed inside. Item identity/date confirmation is not placement confirmation."},
                 "barcode": {
                     "type": "string",
                     "description": "The product barcode digits, exactly as given by a scan result, if one was read.",
@@ -276,7 +277,7 @@ CLIENT_TOOL_SPECS = [
                     "description": "Donor's first name or nickname for the leaderboard, if they offered one.",
                 },
             },
-            "required": ["items", "item_count"],
+            "required": ["items", "item_count", "placement_confirmed"],
         },
     },
 ]
@@ -1091,6 +1092,8 @@ class FridgeVoiceAgent:
         return f"Date on the package: {result}. {today}"
 
     def _tool_log_donation(self, params: dict) -> str:
+        if params.get("placement_confirmed") is not True:
+            return "Not recorded. No points awarded. Ask the donor to place the items inside and explicitly confirm that they have done so before recording."
         items = str(params.get("items") or "").strip() or "unspecified items"
         try:
             count = max(1, int(float(params.get("item_count") or 1)))  # LLMs sometimes send "3" or 3.0

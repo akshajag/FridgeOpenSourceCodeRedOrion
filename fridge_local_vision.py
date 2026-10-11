@@ -786,6 +786,11 @@ def remove_plain_background(image: np.ndarray) -> Optional[np.ndarray]:
     return np.dstack([image, alpha])
 
 
+def needs_more_information(details: dict) -> bool:
+    """Did the vision step flag this item as not (or maybe not) belonging in the fridge?"""
+    return details.get("fridge_ok") in ("no", "unsure") or details.get("is_food") is False
+
+
 def _normalize(text: str) -> str:
     return re.sub(r"[^A-Z0-9]", "", text.upper())
 
@@ -1336,7 +1341,35 @@ class LocalVision:
         details = self._fallback.product_metadata(frame, "", hint)
         if not details:
             return ""
+        if needs_more_information(details):
+            return self._ask_about_item(details)
         return self._resolve_product(frame, [], "", details, None, spoken_first=True)
+
+    def _ask_about_item(self, details: dict) -> str:
+        """The camera sees something that may not belong in the fridge: tell the UI and brief the agent.
+
+        Nothing is looked up or pictured for it. The agent is not handed a
+        sentence to recite: it gets what was seen and why it is in doubt, and
+        is asked to put the question to the donor in its own words.
+        """
+        seen = details.get("object_seen") or "something the camera could not identify"
+        concern = details.get("concern") or ("it does not look like food" if details.get("is_food") is False else "it is not clear what it is")
+        self.last_details = {**details, "label_text": "", "catalog": None, "catalog_match_method": None,
+                             "catalog_photo": None, "web": None, "photo_shows_pack_of": None}
+        log.info("item may not belong in the fridge: %s (%s)", seen, concern)
+        if self._on_product is not None:
+            try:
+                self._on_product(self.last_details)
+            except Exception as exc:
+                log.warning("Product handler failed: %s", exc)
+        certain = details.get("fridge_ok") == "no"
+        return (
+            f"The camera sees {seen}. "
+            + ("This does not look like something the fridge can store" if certain else "It is not clear whether the fridge can store this")
+            + f" ({concern}). Do not accept it yet and do not refuse it yet. Tell the donor what you see, then ask them, "
+            "in your own words, to give you more information about this product so that you can verify whether it "
+            "can be stored in the fridge. Decide only after they answer."
+        )
 
     def _resolve_product(
         self,

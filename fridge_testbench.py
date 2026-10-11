@@ -284,6 +284,8 @@ class TestBench:
     @staticmethod
     def _item_from_details(details: dict) -> Optional[tuple[str, int]]:
         """(name, count) from a Gemini reading, falling back to its catalog listing."""
+        if details.get("fridge_ok") in ("no", "unsure") or details.get("is_food") is False:
+            return None  # flagged as possibly not belonging in the fridge: not something to log
         catalog = details.get("catalog") or {}
         name = " ".join(str(details[key]) for key in ("brand", "variant", "product_name", "size") if details.get(key))
         name = name or " ".join(part for part in (catalog.get("brand"), catalog.get("name"), catalog.get("size")) if part)
@@ -405,6 +407,10 @@ class TestBench:
         self._lines.put((text, tag))
 
     def _on_product(self, details: dict) -> None:
+        if details.get("fridge_ok") in ("no", "unsure") or details.get("is_food") is False:
+            self._item = None  # nothing to add to the log
+            self._say(f"CHECK THIS ITEM: {details.get('object_seen')} - {details.get('concern')}", "bad")
+            return
         better = self._item_from_details(details)
         if better:  # the proper product name replaces the provisional one from the label text
             self._item = (better[0], better[1] if details.get("count") else (self._item or better)[1])

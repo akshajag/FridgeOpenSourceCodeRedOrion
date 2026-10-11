@@ -211,6 +211,10 @@ class FridgeUI:
         self.photo.pack(side="right", padx=(8, 16), pady=10)
         self._photo_image = None
         self._photo_stamp = None
+        # Amber banner for an item that may not belong in the fridge. Hidden until needed.
+        self.notice = tk.Label(
+            captions, text="", font=(FONT, 12, "bold"), fg="#1f1500", bg=WARN, anchor="w", justify="left", padx=14, pady=8
+        )
         self.product = tk.Label(captions, text="", font=(FONT, 11, "bold"), fg=ACCENT, bg=PANEL, anchor="w")
         self.product.pack(fill="x", padx=18, pady=(10, 0))
         self.agent_caption = tk.Label(
@@ -375,6 +379,12 @@ class FridgeUI:
             self.agent_caption.configure(text=text, fg=MUTED)
         elif role == "user":
             self.user_caption.configure(text=f"You:  {text}")
+        elif role == "notice":
+            if text:
+                self.notice.configure(text=f"CHECK THIS ITEM   {text}")
+                self.notice.pack(fill="x", padx=18, pady=(12, 0), before=self.product)
+            else:
+                self.notice.pack_forget()
         elif role == "product":
             self.product.configure(text=text)
             if not text:  # donation logged: clear the photo with it
@@ -412,6 +422,7 @@ class FridgeUI:
         self.root.update_idletasks()
         photo_width = self.photo.winfo_reqwidth() + 24 if self._photo_image is not None else 0
         wrap = max(200, self.captions.winfo_width() - 40 - photo_width)
+        self.notice.configure(wraplength=wrap)
         self.agent_caption.configure(wraplength=wrap)
         self.user_caption.configure(wraplength=wrap)
 

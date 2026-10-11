@@ -129,6 +129,7 @@ Follow these steps in order for every item. Do not skip steps.
 The camera scans actively: it watches until something is held up, so you never wait for the donor to say they are ready. In steps 1 and 4 you say the sentence and call the tool in the same turn, immediately, without waiting for a reply.
 1. Say: "Please hold the item up to the camera." and call scan_donation_item right away, in that same turn.
 2. The scan result is raw: the words printed on the package (largest print first) and a count. Work out the food yourself from the brand and product words, ignoring weights, slogans and nutrition text. Then ask them to confirm, and be as specific as the scan allows: brand, variant or flavour, size, container and amount, in one question. For example: "Is that an 8.4 ounce can of Red Bull Zero, one can?" or "Is that Bush's black beans, the 15 ounce can, two cans?" Use only details the scan actually gave you. Never fill in a size, flavour or variant from memory, and if one is missing just leave it out. Then wait for their answer. If the words do not tell you what the food is, say what you can read and ask what it is. If the result says a barcode matched the product catalog, that is the exact product: use its name, brand and size as given.
+   If the scan says the item may not belong in the fridge, or that it is not clear what it is: do not accept it and do not turn it away yet. Say what the camera sees, then ask the donor for more information about the product so that you can verify whether you can store it in the fridge. Put it in your own words each time and fit it to the item, for example "That looks like a pack of batteries to me. Can you tell me more about it, so I can check whether it can go in the fridge?" Never use the same sentence twice in a row. Then decide from what they tell you, using the acceptance rules in step 6: if it turns out to be sealed, in-date food or drink, carry on with the steps; if not, decline kindly and say why.
    Barcode as the last resort: if the scan found nothing, the camera is not working, or you and the donor still cannot settle exactly which product it is, say "Can you turn the package so its barcode faces the camera?" and call scan_product_barcode right away, in that same turn. If that also finds nothing, or the barcode is not in the catalog, do not guess and do not try the barcode more than twice: ask the donor to tell you what it is and go by what they say. Loose produce like an apple has no barcode and does not need one.
 3. If they confirm, keep it. If they correct you, their word wins over the camera: repeat the corrected food and amount back once so they know you have it right.
 4. In the same turn as step 3, say: "Now please show me the expiration date." and call scan_expiration_date right away.
@@ -731,6 +732,15 @@ class FridgeVoiceAgent:
         dashboard / database gets brand, variant, size, category, catalog
         barcode and image, not just the words the agent spoke.
         """
+        if details.get("fridge_ok") in ("no", "unsure") or details.get("is_food") is False:
+            # Not something to log: something to ask about. Put it on screen.
+            seen = str(details.get("object_seen") or "This item").strip()
+            concern = str(details.get("concern") or "not sure it is food").strip()
+            verdict = "may not belong in the fridge" if details.get("fridge_ok") == "no" else "needs checking"
+            self._caption("notice", f"{seen[:1].upper()}{seen[1:]} - {verdict}: {concern}")
+            self._caption("product", "")
+            return
+        self._caption("notice", "")
         with self._lock:
             self._pending_products.append(details)
         catalog = details.get("catalog") or {}
@@ -803,7 +813,8 @@ class FridgeVoiceAgent:
 
         Roles: "agent" (a line Nourish is speaking), "agent_cut_off" (the part
         actually heard before a barge-in), "user", "status", "donation",
-        "product" (details of the item just scanned; "" clears it).
+        "product" (details of the item just scanned; "" clears it),
+        "notice" (an item that may not belong in the fridge; "" clears it).
         Called from background threads: a UI must hand off to its own thread.
         """
         self._caption_listeners.append(listener)
@@ -982,6 +993,7 @@ class FridgeVoiceAgent:
                 "Camera vision is not connected yet. Ask the donor to tell you what the food is "
                 "and how many there are, and go by what they say."
             )
+        self._caption("notice", "")  # a new item: the last one's warning no longer applies
         self._caption("status", "Scanning item...")
         try:
             result = str(self._item_scanner(hint) or "").strip()

@@ -43,6 +43,7 @@ RATE_LIMIT_COOLDOWN_S = 30.0  # used when the error does not say how long to wai
 SCAN_TIMEOUT_S = 14.0
 MAX_REQUESTS_PER_SCAN = 3
 REQUEST_TIMEOUT_MS = 10_000  # the API rejects deadlines shorter than 10 s
+SLOW_REQUEST_BUDGET_S = 8.0  # once this much has been spent on one question, try no further models
 
 # Local "is something being held up?" check, on a small blurred grayscale frame.
 NO_CHANGE_WAIT_S = 2.5  # nothing moved (item was already in view?): send a frame anyway
@@ -67,10 +68,23 @@ date_visible to false; never guess digits.
 - date_text: the date exactly as printed, including its label if present, e.g. "BEST BY 03/12/2028" or "EXP 2027 JUN 01"."""
 
 PRODUCT_PROMPT = """\
-You are the camera of a community food-donation fridge. Describe the food product being held up, as precisely \
-as the picture and the label text allow. Ignore people, hands and the background.
-Fill a field only when the image or the label text supports it; otherwise leave it null. Never guess a brand, \
-flavour or size from general appearance, and never invent one.
+You are the camera of a community food-donation fridge. Describe whatever is being held up or presented to the \
+camera, as precisely as the picture and any label text allow. Ignore people, hands and the background. Set \
+item_visible to false only if nothing at all is being presented.
+
+First decide what it is and whether it belongs in a shared food fridge:
+- object_seen: what the thing is in a few plain words, e.g. "a can of energy drink", "a pack of AA batteries", \
+"a bottle of shampoo", "an opened bag of chips".
+- is_food: true only for food or drink meant for people.
+- fridge_ok: "yes" if it is sealed, ordinary food or drink that a community fridge can take. "no" if it clearly \
+cannot go in: not food at all, medicine or supplements, alcohol, tobacco or vapes, pet food, cleaning or personal-care \
+products, or food that is visibly opened, leaking, mouldy or damaged. "unsure" if you cannot tell what it is, cannot \
+tell whether it is sealed, or it is home-made or unlabelled.
+- concern: when fridge_ok is not "yes", one short phrase saying why, e.g. "not a food item", "contains alcohol", \
+"the package looks opened", "no label, cannot tell what is inside". Otherwise null.
+
+Then, for food and drink, fill these only when the image or the label text supports them; otherwise leave them \
+null. Never guess a brand, flavour or size from general appearance, and never invent one.
 - brand: e.g. "Red Bull".
 - product_name: the product without the brand, e.g. "energy drink", "black beans".
 - variant: flavour or line, e.g. "Zero", "Sugarfree", "low sodium".
@@ -85,6 +99,10 @@ PRODUCT_SCHEMA = {
     "type": "OBJECT",
     "properties": {
         "item_visible": {"type": "BOOLEAN"},
+        "object_seen": {"type": "STRING", "nullable": True},
+        "is_food": {"type": "BOOLEAN", "nullable": True},
+        "fridge_ok": {"type": "STRING", "enum": ["yes", "no", "unsure"], "nullable": True},
+        "concern": {"type": "STRING", "nullable": True},
         "brand": {"type": "STRING", "nullable": True},
         "product_name": {"type": "STRING", "nullable": True},
         "variant": {"type": "STRING", "nullable": True},
@@ -243,8 +261,9 @@ class GeminiVision:
     def product_metadata(self, frame: np.ndarray, label_text: str = "", hint: str = "") -> dict:
         """One request: everything specific Gemini can support about the product in this frame.
 
-        Returns {} if no food item is visible. Keys: brand, product_name,
-        variant, size, container, category, storage, count, sealed (any may be None).
+        Returns {} if nothing is being presented. Keys: object_seen, is_food,
+        fridge_ok ("yes" / "no" / "unsure"), concern, and for food: brand,
+        product_name, variant, size, container, category, storage, count, sealed.
         """
         prompt = PRODUCT_PROMPT
         if label_text:
@@ -254,7 +273,8 @@ class GeminiVision:
         result = self._ask_with_fallback(prompt, PRODUCT_SCHEMA, frame, ITEM_MODELS, max_width=1280)
         if not result.get("item_visible"):
             return {}
-        return {key: value for key, value in result.items() if key != "item_visible" and value not in (None, "")}
+        # `False` is information here (is_food, sealed), so only empty values are dropped.
+        return {key: value for key, value in result.items() if key != "item_visible" and value is not None and value != ""}
 
     def web_lookup(self, frame: np.ndarray, label_text: str = "", known: Optional[dict] = None) -> dict:
         """Look the product up on the web through Gemini's Google Search tool.
@@ -429,9 +449,16 @@ class GeminiVision:
         extra_image: Optional[np.ndarray] = None,
     ) -> dict:
         last_error: Optional[Exception] = None
+        started = time.monotonic()
         for model in models:
             if time.monotonic() < self._cooling_until.get(model, 0.0):
                 continue
+            # A rate-limited model answers "no" in a fraction of a second, so
+            # trying the next one is free. A model that hangs costs its full
+            # 10 s timeout; after one of those, stop, so the caller can fall
+            # back to the on-device models while the donor is still waiting.
+            if time.monotonic() - started > SLOW_REQUEST_BUDGET_S:
+                break
             try:
                 return self._ask(model, prompt, schema, frame, max_width, extra_image)
             except errors.ClientError as exc:

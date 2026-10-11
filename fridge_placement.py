@@ -1,5 +1,8 @@
 """Verify a new donation using before/after frames from the fixed shelf camera."""
 import uuid
+import time
+import logging
+log = logging.getLogger("fridge.placement")
 
 class PlacementPending(RuntimeError):
     pass
@@ -12,8 +15,18 @@ class PlacementGate:
         self.operation_id=None
 
     def begin(self):
-        frame=self.capture() if self.capture else None
-        self.before=frame.copy() if frame is not None else None
+        # A front-camera retry belongs to the same donation. Never replace
+        # its empty-shelf evidence after the donor has already put food inside.
+        if self.before is not None:
+            return
+        deadline = time.monotonic() + 2.5
+        frame = self.capture() if self.capture else None
+        while frame is None and self.capture and time.monotonic() < deadline:
+            time.sleep(0.1)
+            frame = self.capture()
+        if frame is None:
+            raise PlacementPending("The inside camera is not ready. Keep the item outside while the operator checks the shelf camera, then retry the item scan.")
+        self.before=frame.copy()
         self.operation_id=str(uuid.uuid4())
 
     def verify(self, item, count):
@@ -23,14 +36,16 @@ class PlacementGate:
         if after is None:
             raise PlacementPending('The inside camera has no picture. No donation was recorded; ask the operator to reconnect it.')
         try:result=self.vision.verify_placement(after,self.before,item,int(count))
-        except Exception:
-            raise PlacementPending('The inside-camera check is unavailable. No donation was recorded. Ask the donor to wait, then retry confirmation.') from None
+        except Exception as exc:
+            log.warning("Shelf verification failed: %s", exc)
+            raise PlacementPending('The inside-camera AI check is temporarily unavailable. The donation is pending, not recorded. Keep the item visible inside and retry confirmation; do not rescan the front camera.') from None
         # Qualitative model observations are evidence, not calibrated probabilities.
         if (result.get('image_usable') is not True or result.get('placed_inside') is not True
                 or result.get('quantity_increased') is not True or result.get('item_match') != 'confirmed'
                 or not isinstance(result.get('added_count'),int) or isinstance(result.get('added_count'),bool)
                 or result['added_count'] < int(count)):
-            raise PlacementPending('The inside camera cannot yet verify the new item. Ask the donor to place it visibly on the fridge shelf, uncover its label, and say when ready to check again.')
+            reason = str(result.get('reason') or 'The new item is not clearly visible.')[:300]
+            raise PlacementPending(f'Not recorded yet. Shelf camera: {reason} Ask the donor to leave the new item visibly on the shelf, move their hand away, and say when ready to retry the inside check. Do not rescan the front camera.')
         return result
 
     def complete(self):

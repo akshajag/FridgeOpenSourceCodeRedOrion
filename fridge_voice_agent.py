@@ -126,14 +126,14 @@ This is the most important rule you have: taking food is exactly what the fridge
 
 ## Donors: walk them through it
 Follow these steps in order for every item. Do not skip steps.
-The camera scans actively: it watches until something is held up, so you never wait for the donor to say they are ready. In steps 1 and 4 you say the sentence and call the tool in the same turn, immediately, without waiting for a reply.
+The camera scans actively: it watches until something is held up, so you never wait for the donor to say they are ready. In step 1 you ask and start the item scan in the same turn. For dates, first offer speaking or camera reading and respect the donor's choice.
 1. Say: "Please hold the item up to the camera." and call scan_donation_item right away, in that same turn.
 2. The scan result is raw: the words printed on the package (largest print first) and a count. Work out the food yourself from the brand and product words, ignoring weights, slogans and nutrition text. Then ask them to confirm, and be as specific as the scan allows: brand, variant or flavour, size, container and amount, in one question. For example: "Is that an 8.4 ounce can of Red Bull Zero, one can?" or "Is that Bush's black beans, the 15 ounce can, two cans?" Use only details the scan actually gave you. Never fill in a size, flavour or variant from memory, and if one is missing just leave it out. Then wait for their answer. If the words do not tell you what the food is, say what you can read and ask what it is. If the result says a barcode matched the product catalog, that is the exact product: use its name, brand and size as given.
    If the scan says the item may not belong in the fridge, or that it is not clear what it is: do not accept it and do not turn it away yet. Say what the camera sees, then ask the donor for more information about the product so that you can verify whether you can store it in the fridge. Put it in your own words each time and fit it to the item, for example "That looks like a pack of batteries to me. Can you tell me more about it, so I can check whether it can go in the fridge?" Never use the same sentence twice in a row. Then decide from what they tell you, using the acceptance rules in step 6: if it turns out to be sealed, in-date food or drink, carry on with the steps; if not, decline kindly and say why.
    Barcode as the last resort: if the scan found nothing, the camera is not working, or you and the donor still cannot settle exactly which product it is, say "Can you turn the package so its barcode faces the camera?" and call scan_product_barcode right away, in that same turn. If that also finds nothing, or the barcode is not in the catalog, do not guess and do not try the barcode more than twice: ask the donor to tell you what it is and go by what they say. Loose produce like an apple has no barcode and does not need one.
 3. If they confirm, keep it. If they correct you, their word wins over the camera: repeat the corrected food and amount back once so they know you have it right.
-4. In the same turn as step 3, say: "Now please show me the expiration date." and call scan_expiration_date right away.
-5. If the scan returned a date, read it out loud, for example: "I read best by March twelfth, twenty twenty-eight." If the camera could not read the date, ask them to turn the printed date toward the camera, hold it steady in the center with good light, and retry scan_expiration_date once. After two tool attempts, ask them to read the date aloud. Never say the camera read a date that came only from the donor.
+4. Ask: "Please tell me the expiration date, or hold the printed date in front of the camera so I can read it." Offer BOTH choices immediately. If they say a date, do not call scan_expiration_date: read the date back, ask them to confirm it, then call record_expiration_date with an unambiguous YYYY-MM-DD date and donor_confirmed=true. Ask for month/day/year if any part is missing or ambiguous; never guess. If they choose the camera, call scan_expiration_date. Never interrupt someone reading a date aloud with another scan request.
+5. If the camera returns a date, read it aloud and ask them to confirm it. If unreadable, immediately say "I can't read that clearly. You can tell me the date instead." Do not force another camera attempt. A donor-reported date is not a camera-verified date. If no date can be supplied, ask for operator review rather than inventing one.
 6. Decide whether to accept it: sealed or unopened, not past its date (the tool result tells you today's date), and not something the fridge cannot take (alcohol, opened packages, home-cooked food without a label and date, anything that smells or looks off). Those are the only restrictions; do not invent others. Any other sealed, in-date food or drink is welcome, including snacks, soda and energy drinks. If it is not okay, decline kindly, explain why in one sentence, and thank them for the thought. If it is okay, tell them to place it inside. Then ask whether they have actually placed it inside, and wait for an explicit answer. Confirming its name, quantity or expiration date does not confirm placement.
 7. Once they explicitly confirm placement, say "Let me check the inside camera" and call log_donation with placement_confirmed=true for this ONE product and its quantity. This tool compares before/after inside-camera pictures and only records if it verifies a new matching item. If it cannot verify, do not announce a donation: ask them to make the item visible on the shelf and tell you when ready; then retry log_donation without rescanning the donor camera. Once the tool reports saved, ask if they have another item; if so go back to step 1. Include barcode digits if read. Never bundle different products into one log call.
 8. Only after the tool reports the donation was saved, thank the donor. Do not offer or mention points, scores, rewards or a leaderboard.
@@ -231,9 +231,9 @@ CLIENT_TOOL_SPECS = [
         "type": "client",
         "name": "scan_expiration_date",
         "description": (
-            "Read the expiration / best-by date the donor is showing to the camera. The camera keeps watching "
-            "until a date is visible, so call this in the same turn as asking the donor to show the date; "
-            "do not wait for them to say they are ready. The result also states today's date."
+            "Read a printed expiration date ONLY when the donor chooses the camera option. "
+            "If the donor reads a date aloud, use record_expiration_date instead. "
+            "An unreadable result means offer speaking the date immediately, not repeated scans."
         ),
         "expects_response": True,
         "response_timeout_secs": 40,
@@ -248,6 +248,15 @@ CLIENT_TOOL_SPECS = [
             },
             "required": [],
         },
+    },
+    {
+        "type": "client", "name": "record_expiration_date",
+        "description": "Save the expiration date spoken by the donor after reading it back and receiving confirmation. Never guess an ambiguous or missing month/day/year. This records donor-reported evidence, not camera evidence.",
+        "expects_response": True, "response_timeout_secs": 10,
+        "parameters": {"type": "object", "properties": {
+            "date": {"type": "string", "description": "Unambiguous complete date in YYYY-MM-DD format."},
+            "donor_confirmed": {"type": "boolean", "description": "True only after donor confirms your read-back."}
+        }, "required": ["date", "donor_confirmed"]},
     },
     {
         "type": "client",
@@ -312,7 +321,7 @@ def build_agent_config() -> dict:
         "tts": tts,
         "asr": {"user_input_audio_format": "pcm_16000"},
         # Donors are busy loading a fridge: wait as long as allowed before re-prompting.
-        "turn": {"turn_timeout": 30, "turn_eagerness": "normal"},
+        "turn": {"turn_timeout": 30, "turn_eagerness": "patient"},
         "conversation": {
             "max_duration_seconds": 1800,
             "client_events": [
@@ -703,6 +712,7 @@ class FridgeVoiceAgent:
         self._checks = 0
         self._pending_products: list[dict] = []  # scanned since the last logged donation
         self._session_generation = 0
+        self._expiration = None
         self._session_reset_listeners = []
         self._session_permission = None
 
@@ -858,6 +868,7 @@ class FridgeVoiceAgent:
         with self._lock:
             self._session_generation += 1
             self._pending_products.clear()
+            self._expiration = None
             self._checks = 0
             job = self._barcode_job
             self._barcode_job = None
@@ -1034,6 +1045,7 @@ class FridgeVoiceAgent:
         tools.register("scan_product_barcode", self._tool_scan_product_barcode)
         tools.register("scan_expiration_date", self._tool_scan_expiration_date)
         tools.register("log_donation", self._tool_log_donation)
+        tools.register("record_expiration_date", self._tool_record_expiration_date)
         return tools
 
     def _tool_get_fridge_status(self, params: dict) -> str:
@@ -1056,6 +1068,9 @@ class FridgeVoiceAgent:
         self._caption("status", "Scanning item...")
         try:
             result = str(self._item_scanner(hint) or "").strip()
+        except PlacementPending as exc:
+            self._caption("notice", str(exc))
+            return str(exc)
         except Exception as exc:
             # A scanner that raises is broken (as opposed to "saw nothing"):
             # don't make the donor keep holding things up to a dead camera.
@@ -1141,10 +1156,28 @@ class FridgeVoiceAgent:
         self.transcript.add("scan_expiry", result, item=item)
         if not result:
             return (
-                "The camera tried OCR and Gemini but could not read the date. Ask the donor to turn the date toward "
-                f"the camera and hold it steady in the center with good light, then retry once. If still unreadable, ask them to read it aloud. {today}"
+                f"The camera could not read the date clearly. Ask the donor to tell you the date aloud instead; do not force another scan. {today}"
             )
-        return f"Date on the package: {result}. {today}"
+        with self._lock:
+            self._expiration = {"text": result, "source": "camera", "confirmed": False}
+        return f"Date on the package: {result}. Ask the donor to confirm this reading. {today}"
+
+    def _tool_record_expiration_date(self, params: dict) -> str:
+        if params.get("donor_confirmed") is not True:
+            return "Date not saved. Read it back and ask the donor to confirm first."
+        raw = str(params.get("date") or "").strip()
+        try:
+            value = datetime.strptime(raw, "%Y-%m-%d").date()
+            if value.isoformat() != raw:
+                raise ValueError("Use ISO date")
+        except ValueError:
+            return "Date not saved. Ask for a complete, unambiguous month, day and year. Never guess."
+        with self._lock:
+            self._expiration = {"text": raw, "date": raw, "source": "donor_reported", "confirmed": True}
+        self._caption("notice", f"Expiration: {raw} (reported by donor)")
+        if value < datetime.now().date():
+            return "The donor-reported date is in the past. Do not accept this donation; ask for operator review."
+        return f"Saved donor-reported expiration date {raw}. This was spoken, not read by the camera."
 
     def _tool_log_donation(self, params: dict) -> str:
         if params.get("placement_confirmed") is not True:
@@ -1164,7 +1197,11 @@ class FridgeVoiceAgent:
         }
         with self._lock:
             record["products"] = list(self._pending_products)
+            record["expiration"] = self._expiration
+        if record["expiration"] and record["expiration"].get("date", "9999-12-31") < datetime.now().date().isoformat():
+            return "Not recorded: the reported expiration date is in the past. Ask for operator review."
         if self._donation_store is not None:
+            self._caption("status", "Checking inside camera...")
             try:
                 self._donation_store(record)
             except PlacementPending as exc:
@@ -1173,8 +1210,11 @@ class FridgeVoiceAgent:
             except Exception:
                 self._caption('notice','Donation was not saved: check the database connection.')
                 return 'Donation was not saved. Ask the operator to check the database connection before retrying.'
+            finally:
+                self._caption('status', 'Live')
         with self._lock:
             self._pending_products = []
+            self._expiration = None
             self.donations.append(record)
         self.transcript.add("donation", items, **{k: v for k, v in record.items() if k not in ("items", "ts")})
         self._caption("product", "")

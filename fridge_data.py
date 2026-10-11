@@ -74,7 +74,7 @@ class FridgeData:
                 'display_image_url':https(photo.get('url')) if photo.get('verdict')=='same' else https(catalog.get('image_url')),
                 'image_source_url':https(catalog.get('source_url')) or ('https://world.openfoodfacts.org/product/'+str(catalog.get('barcode')) if str(catalog.get('barcode') or '').isdigit() else None),
                 'match_method':'barcode' if barcode else 'visual' if details else 'manual',
-                'metadata':{'vision_details':details,'expiry_status':'unverified'}})
+                'metadata':{'vision_details':details,'expiry_status':'donor_reported' if (details.get('expiration') or {}).get('source') == 'donor_reported' else 'unverified'}})
             self._products[operation_id]=product['id']
         self.request('POST','/donations/propose',{
             'id':operation_id,'fridge_id':self.fridge_id,'product_id':self._products[operation_id],

@@ -52,6 +52,7 @@ class Camera:
         self._exclude = exclude  # a camera with another job (the shelf camera): never switch onto it
         self.mirror_horizontal = os.getenv("FRIDGE_FRONT_MIRROR", "0") == "1" if index == int(os.getenv("FRIDGE_CAMERA_INDEX", "0")) else os.getenv("FRIDGE_SHELF_MIRROR", "0") == "1"
         self._frame: Optional[np.ndarray] = None
+        self._frame_at = 0.0
         self._lock = threading.Lock()
         self._running = threading.Event()
         self._reopen = threading.Event()
@@ -77,11 +78,11 @@ class Camera:
     def get_frame(self) -> Optional[np.ndarray]:
         """Latest frame as a BGR array (a copy), or None if the camera has no picture."""
         with self._lock:
-            return None if self._frame is None else self._frame.copy()
+            return None if self._frame is None or time.monotonic() - self._frame_at > 2 else self._frame.copy()
 
     def _open(self):
         # DirectShow opens in well under a second; the default MSMF backend can take ~10 s.
-        backend = cv2.CAP_DSHOW if sys.platform == "win32" else cv2.CAP_ANY
+        backend = cv2.CAP_DSHOW if sys.platform == "win32" else cv2.CAP_AVFOUNDATION if sys.platform == "darwin" else cv2.CAP_ANY
         capture = cv2.VideoCapture(self.index, backend)
         if not capture.isOpened():
             capture.release()
@@ -135,6 +136,7 @@ class Camera:
                 black_since = None
             with self._lock:
                 self._frame = frame
+                self._frame_at = time.monotonic()
         if capture is not None:
             capture.release()
 
@@ -208,7 +210,7 @@ class FridgeUI:
         self.entry.pack(side="bottom", fill="x", padx=20, pady=(0, 16), ipady=7)
         self.entry.bind("<Return>", self._on_enter)
         tk.Label(
-            self.root, text="Type to Nourish and press Enter   |   C = switch donor camera   |   V = switch shelf camera",
+            self.root, text="Speak after Nourish finishes, or type here and press Enter   |   C = donor camera   |   V = shelf camera",
             font=(FONT, 9), fg=MUTED, bg=BG
         ).pack(side="bottom", anchor="w", padx=20, pady=(0, 3))
 
@@ -474,6 +476,9 @@ def main() -> int:
         "--gate-rms", type=float, default=float(os.getenv("FRIDGE_GATE_RMS", voice.DEFAULT_GATE_RMS))
     )
     args = parser.parse_args()
+    from fridge_camera_devices import named_camera
+    args.camera = named_camera(os.getenv('FRIDGE_FRONT_CAMERA_NAME'), args.camera)
+    args.inventory_camera = named_camera(os.getenv('FRIDGE_SHELF_CAMERA_NAME'), args.inventory_camera)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     for stream in (sys.stdout, sys.stderr):
@@ -501,11 +506,11 @@ def main() -> int:
         evidence = placement.verify(record["items"], record["item_count"])
         products=record.get('products') or []
         details=products[-1] if products else {}
-        details = {**details, 'placement_check': evidence}
+        details = {**details, 'placement_check': evidence, 'expiration': record.get('expiration')}
         data.confirm_donation(record['items'],record['item_count'],details,operation_id=placement.operation_id)
         placement.complete()
     agent.set_donation_store(store_donation)
-    camera = Camera(args.camera, exclude=args.inventory_camera)
+    camera = Camera(args.camera, auto_select=False, exclude=args.inventory_camera)
     # On-device models do the scanning, through the same frames the window
     # shows. Gemini double-checks them, and takes over for things they cannot make out.
     from fridge_local_vision import LocalVision
@@ -558,7 +563,10 @@ def main() -> int:
         placement.begin()
         return vision.identify_item(hint)
     def barcode_with_before_frame():
-        if placement.before is None: placement.begin()
+        try:
+            placement.begin()
+        except voice.PlacementPending as exc:
+            return str(exc)
         return vision.scan_barcode()
     def reset_camera_session():
         placement.complete()
@@ -594,15 +602,18 @@ def main() -> int:
     sensor_stop=threading.Event()
     def poll_conditions():
         previous=set()
+        last_context = 0.0
         while not sensor_stop.is_set():
             try:
                 conditions=data.conditions()
                 summary=condition_summary(conditions)
-                agent.update_conditions(summary)
+                if time.monotonic() - last_context >= 15:
+                    agent.update_conditions(summary)
+                    last_context = time.monotonic()
                 window._events.put(('sensors',summary))
                 active={item['key'] for item in conditions['alerts']}
                 for item in conditions['alerts']:
-                    if item['key'] not in previous:agent.announce(f"{item['label']}: please check the fridge. This is a monitoring alert, not a food safety diagnosis.")
+                    if item['key'] not in previous and placement.before is None:agent.announce(f"{item['label']}: please check the fridge. This is a monitoring alert, not a food safety diagnosis.")
                 previous=active
             except Exception:
                 agent.update_conditions('Sensor monitoring is unavailable; do not infer normal or safe conditions.')

@@ -43,7 +43,7 @@ RATE_LIMIT_COOLDOWN_S = 30.0  # used when the error does not say how long to wai
 SCAN_TIMEOUT_S = 14.0
 MAX_REQUESTS_PER_SCAN = 3
 REQUEST_TIMEOUT_MS = 10_000  # the API rejects deadlines shorter than 10 s
-SLOW_REQUEST_BUDGET_S = 8.0  # once this much has been spent on one question, try no further models
+SLOW_REQUEST_BUDGET_S = 22.0  # once this much has been spent on one question, try no further models
 
 # Local "is something being held up?" check, on a small blurred grayscale frame.
 NO_CHANGE_WAIT_S = 2.5  # nothing moved (item was already in view?): send a frame anyway
@@ -471,10 +471,8 @@ class GeminiVision:
         for model in models:
             if time.monotonic() < self._cooling_until.get(model, 0.0):
                 continue
-            # A rate-limited model answers "no" in a fraction of a second, so
-            # trying the next one is free. A model that hangs costs its full
-            # 10 s timeout; after one of those, stop, so the caller can fall
-            # back to the on-device models while the donor is still waiting.
+            # Leave time for the fallback even if the first model times out.
+            # Two 10-second requests fit the 40-second placement tool deadline.
             if time.monotonic() - started > SLOW_REQUEST_BUDGET_S:
                 break
             try:

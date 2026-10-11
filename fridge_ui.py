@@ -482,10 +482,14 @@ def main() -> int:
         gate_rms=args.gate_rms,
     )
     data=FridgeData()
+    placement = None
     def store_donation(record):
+        evidence = placement.verify(record["items"], record["item_count"])
         products=record.get('products') or []
         details=products[0] if len(products)==1 else {}
-        data.confirm_donation(record['items'],record['item_count'],details)
+        details = {**details, 'placement_check': evidence}
+        data.confirm_donation(record['items'],record['item_count'],details,operation_id=placement.operation_id)
+        placement.complete()
     agent.set_donation_store(store_donation)
     camera = Camera(args.camera, exclude=args.inventory_camera)
     # On-device models do the scanning, through the same frames the window
@@ -530,6 +534,16 @@ def main() -> int:
             capture=(shelf_camera or camera).get_frame,
         )
         agent.on_donation_logged(auditor.add_donation)  # what was scanned in = what should be on the shelves
+    from fridge_placement import PlacementGate
+    placement = PlacementGate(shelf_camera.get_frame if shelf_camera else None, backup)
+    def scan_with_before_frame():
+        placement.begin()
+        return vision.identify_item()
+    def barcode_with_before_frame():
+        if placement.before is None: placement.begin()
+        return vision.scan_barcode()
+    agent.set_item_scanner(scan_with_before_frame)
+    agent.set_barcode_scanner(barcode_with_before_frame)
     window = FridgeUI(agent, camera, vision, shelf_camera, auditor)
 
     if auditor is not None:

@@ -340,6 +340,24 @@ class GeminiVision:
             AUDIT_PROMPT.format(expected=listing), AUDIT_SCHEMA, frame, AUDIT_MODELS, max_width=1600
         )
 
+    def verify_placement(self, after, before, item, count):
+        """First image is AFTER placement; second is BEFORE the donor scan."""
+        prompt=("You are checking a donation with a fixed camera looking INSIDE a community fridge. "
+                "Image 1 is AFTER the donor said they placed the food. Image 2 is BEFORE their donation. "
+                f"The donor confirmed this product: {item!r}; quantity: {count}. "
+                "Compare both images. Confirm only NEW visible matching food resting on a shelf in the fridge interior. "
+                "A person holding food, or an item on an outside table, is not placement inside. "
+                "Existing identical cans in both images do not count as additions. "
+                "Do not match a different brand/flavour to an exact branded item. "
+                "If labels, occlusion, darkness, camera movement or view do not let you establish this, return uncertain. "
+                "Do not infer expiry, food safety or identity from the donor's statement alone.")
+        schema={"type":"OBJECT","properties":{
+            "image_usable":{"type":"BOOLEAN"},"placed_inside":{"type":"BOOLEAN"},
+            "quantity_increased":{"type":"BOOLEAN"},"added_count":{"type":"INTEGER"},
+            "item_match":{"type":"STRING","enum":["confirmed","different","uncertain"]},
+            "reason":{"type":"STRING"}},"required":["image_usable","placed_inside","quantity_increased","added_count","item_match","reason"]}
+        return self._ask_with_fallback(prompt,schema,after,AUDIT_MODELS,max_width=1280,extra_image=before)
+
     def same_product(self, frame: np.ndarray, catalog_image: np.ndarray) -> Optional[bool]:
         """One request: does the catalog photo show the item in the frame? None when it cannot tell."""
         result = self._ask_with_fallback(

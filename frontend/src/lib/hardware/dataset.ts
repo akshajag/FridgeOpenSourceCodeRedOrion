@@ -1,7 +1,7 @@
 import "server-only";
 import type { FridgeyDataset, User, FoodCategory } from "@/types";
 import { bridge } from "./bridge";
-type Reading = { event_id: string; captured_at: string; temperature_c: number | null; air_quality_raw: number | null };
+type Reading = { event_id: string; captured_at: string; temperature_c: number | string | null; air_quality_raw: number | string | null };
 type Event = {id:string;product_id:string;kind:string;quantity_delta:number;verification:string;occurred_at:string;canonical_name:string};
 type Product = { product_id: string; canonical_name: string; recorded_quantity: number; last_event_at: string };
 type Details = {fridge:{name:string;created_at:string}|null; products:{id:string;match_method:string;metadata:Record<string,unknown>}[]; donations:{id:string;product_id:string;canonical_name:string;quantity:number;status:string;identification_method:string;details:Record<string,unknown>;created_at:string;confirmed_at:string|null}[]};
@@ -10,7 +10,7 @@ export async function loadHardwareDataset(userId = "local-hardware-operator", na
   const id = process.env.FRIDGE_ID ?? "orion-fridge-01";
   async function read<T>(suffix: string): Promise<T> { const r = await bridge(`/fridges/${encodeURIComponent(id)}/${suffix}`); if (!r.ok) throw new Error("Tiger Data is unavailable"); return r.json(); }
   const [c, recent, products, events, history, details] = await Promise.all([read<Conditions>("conditions"), read<Reading[]>("sensors"), read<Product[]>("inventory"), read<Event[]>("events"), read<Reading[]>("history"), read<Details>("details")]);
-  const readings = [...recent, ...history.filter(r => !recent.length || r.captured_at < recent[recent.length-1].captured_at)].map((r,i)=>({...r,event_id:r.event_id ?? `history-${i}`}));
+  const readings = [...recent, ...history.filter(r => !recent.length || r.captured_at < recent[recent.length-1].captured_at)].map((r,i)=>({...r,event_id:r.event_id ?? `history-${i}`,temperature_c:r.temperature_c===null?null:Number(r.temperature_c),air_quality_raw:r.air_quality_raw===null?null:Number(r.air_quality_raw)}));
   const categories:FoodCategory[]=["dairy","produce","protein","bakery","prepared","beverages","pantry"];
   const category=(value:unknown):FoodCategory=>categories.includes(value as FoodCategory)?value as FoodCategory:"pantry";
   const expiry=(value:unknown)=>typeof value==="string"&&Number.isFinite(Date.parse(value))?new Date(value).toISOString():undefined;

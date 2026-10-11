@@ -48,6 +48,8 @@ Once collection is resumed, the bridge stores `accelerometer_available`, `accele
 
 ## Teammate integration
 
+Thermal mathematics and the monitoring page are implemented: see [MATH-HANDOFF.md](MATH-HANDOFF.md). Read-only authenticated `GET /fridges/:id/thermal` computes observed degree-minute exposure, above-threshold duration, monitoring coverage, longest gap, staleness and time-weighted mean from actual Tiger timestamps. `http://127.0.0.1:3200/monitor` provides a live view without starting sensor uploads. Integrate the same endpoint into the teammate's final dashboard through their backend.
+
 Use the data API from your **backend**, not by placing its bearer token in browser bundles. Each request needs `Authorization: Bearer <DATA_API_TOKEN>` and JSON Content-Type for writes. No permissive CORS is enabled. For a remote frontend, connect through an authenticated backend/local bridge design; this API binds localhost and is not a hosted teammate-accessible server.
 
 - `POST /products`: `canonical_name`, optional barcode/brand/variant/package_size, `display_image_url`, `image_source_url`, `match_method` (`barcode`, `visual`, `manual`, `generic`), optional metadata. Returns product ID. Barcode lookup is implemented by the camera teammate; this endpoint stores its verified result. Barcode must remain a string. Same barcode updates its product record; reuse product IDs for non-barcoded items.

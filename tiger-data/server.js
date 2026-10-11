@@ -2,10 +2,17 @@ import express from 'express';
 import {timingSafeEqual,randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {makePool} from './db.js';
+import {fileURLToPath} from 'node:url';
+import {getThermalMetrics} from './thermal-query.js';
 const pool=makePool(), app=express();
 if(!process.env.DATA_API_TOKEN)throw new Error('DATA_API_TOKEN required');
 app.disable('x-powered-by');app.use(express.json({limit:'256kb'}));
 app.get('/health',async(_req,res)=>{try{await pool.query('SELECT 1');res.json({ok:true,database:'connected'});}catch{res.status(503).json({ok:false,database:'unavailable'});}});
+app.get('/monitor',(_req,res)=>{
+  res.set('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none'");
+  res.sendFile(fileURLToPath(new URL('./public/monitor.html',import.meta.url)));
+});
+app.get('/monitor.js',(_req,res)=>res.sendFile(fileURLToPath(new URL('./public/monitor.js',import.meta.url))));
 app.use((req,res,next)=>{
   const supplied=Buffer.from(req.get('authorization')||''),expected=Buffer.from(`Bearer ${process.env.DATA_API_TOKEN}`);
   if(supplied.length!==expected.length || !timingSafeEqual(supplied,expected))return res.status(401).json({error:'unauthorized'});
@@ -13,6 +20,13 @@ app.use((req,res,next)=>{
 });
 const uuid=z.string().uuid(), timestamp=z.string().datetime({offset:true});
 const fridge=z.string().min(1).max(100), json=z.record(z.string(),z.unknown());
+app.get('/fridges/:id/thermal',async(req,res)=>{
+  const q=z.object({start:timestamp.optional(),end:timestamp.optional(),device_id:fridge.optional(),threshold_c:z.coerce.number().finite().min(-40).max(85).default(4),max_gap_seconds:z.coerce.number().finite().min(1).max(300).default(15),stale_seconds:z.coerce.number().finite().min(1).max(600).default(20)}).parse(req.query);
+  const end=q.end?new Date(q.end):new Date(),start=q.start?new Date(q.start):new Date(+end-3600000);
+  if(+end> Date.now()+1000 || +end<=+start || +end-+start>7*86400000)return res.status(400).json({error:'window_must_be_past_positive_and_at_most_7_days'});
+  res.set('Cache-Control','no-store');
+  res.json(await getThermalMetrics(pool,{fridgeId:fridge.parse(req.params.id),deviceId:q.device_id||process.env.DEVICE_ID||'arduino-uno-r4',start,end,thresholdC:q.threshold_c,maxGapSeconds:q.max_gap_seconds,staleSeconds:q.stale_seconds}));
+});
 const url=z.string().url().refine(s=>s.startsWith('https://'),'Use HTTPS').nullable().optional();
 const product=z.object({id:uuid.optional(),canonical_name:z.string().min(1).max(200),barcode:z.string().regex(/^\d{8,14}$/).nullable().optional(),brand:z.string().max(200).nullable().optional(),variant:z.string().max(200).nullable().optional(),package_size:z.string().max(100).nullable().optional(),display_image_url:url,image_source_url:url,match_method:z.enum(['barcode','visual','manual','generic']),metadata:json.default({})});
 app.post('/products',async(req,res)=>{
@@ -44,6 +58,6 @@ app.post('/inventory/audits',async(req,res)=>{
 app.get('/fridges/:id/inventory',async(req,res)=>res.json((await pool.query('SELECT * FROM fridge.inventory_balances WHERE fridge_id=$1 ORDER BY canonical_name',[fridge.parse(req.params.id)])).rows));
 app.get('/fridges/:id/audits',async(req,res)=>res.json((await pool.query('SELECT * FROM fridge.camera_audits WHERE fridge_id=$1 ORDER BY captured_at DESC LIMIT 100',[fridge.parse(req.params.id)])).rows));
 app.get('/fridges/:id/sensors',async(req,res)=>res.json((await pool.query('SELECT * FROM fridge.sensor_readings WHERE fridge_id=$1 ORDER BY captured_at DESC LIMIT 100',[fridge.parse(req.params.id)])).rows));
-app.use((error,_req,res,_next)=>{if(error instanceof z.ZodError)return res.status(400).json({error:'invalid_input',fields:error.issues.map(i=>i.path.join('.'))});if(error.type==='entity.too.large')return res.status(413).json({error:'payload_too_large'});res.status(500).json({error:'data_operation_failed'});});
+app.use((error,_req,res,_next)=>{if(error instanceof z.ZodError)return res.status(400).json({error:'invalid_input',fields:error.issues.map(i=>i.path.join('.'))});if(error.code==='METRICS_WINDOW_TOO_LARGE')return res.status(422).json({error:'reduce_metrics_window'});if(error.type==='entity.too.large')return res.status(413).json({error:'payload_too_large'});res.status(500).json({error:'data_operation_failed'});});
 const server=app.listen(Number(process.env.DATA_PORT||3200),'127.0.0.1',()=>console.log('Fridge data API: http://127.0.0.1:'+(process.env.DATA_PORT||3200)));
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(async()=>{await pool.end();process.exit(0);}));

@@ -173,8 +173,8 @@ class FridgeUI:
         )
         self.status = tk.Label(header, text="Connecting...", font=(FONT, 12, "bold"), fg=WARN, bg=BG)
         self.status.pack(side="right")
-        self.points = tk.Label(header, text="", font=(FONT, 12, "bold"), fg=ACCENT, bg=BG)
-        self.points.pack(side="right", padx=(0, 18))
+        self.donation_status = tk.Label(header, text="", font=(FONT, 12, "bold"), fg=ACCENT, bg=BG)
+        self.donation_status.pack(side="right", padx=(0, 18))
 
         # Result of the latest shelf audit (empty until an inventory camera is configured).
         self.inventory = tk.Label(self.root, text="", font=(FONT, 10), fg=MUTED, bg=BG, anchor="w", justify="left")
@@ -400,7 +400,7 @@ class FridgeUI:
         elif role in ("inventory", "inventory_alert"):
             self.inventory.configure(text=text, fg=WARN if role == "inventory_alert" else MUTED)
         elif role == "donation":
-            self.points.configure(text=text)
+            self.donation_status.configure(text=text)
         elif role == "status":
             self.status.configure(text=text, fg=ACCENT if text == "Live" else WARN)
 
@@ -536,9 +536,9 @@ def main() -> int:
         agent.on_donation_logged(auditor.add_donation)  # what was scanned in = what should be on the shelves
     from fridge_placement import PlacementGate
     placement = PlacementGate(shelf_camera.get_frame if shelf_camera else None, backup)
-    def scan_with_before_frame():
+    def scan_with_before_frame(hint: str = ""):
         placement.begin()
-        return vision.identify_item()
+        return vision.identify_item(hint)
     def barcode_with_before_frame():
         if placement.before is None: placement.begin()
         return vision.scan_barcode()

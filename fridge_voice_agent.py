@@ -89,7 +89,6 @@ DEFAULT_GATE_RMS = 2500.0  # int16 RMS; tune on site with --mic-test
 
 BARCODE_RESULT_MIN_DELAY_S = 6.0  # time for the agent to finish asking for the barcode
 
-POINTS_PER_ITEM = 10
 MAX_RECONNECTS = 5
 
 # --------------------------------------------------------------------------
@@ -108,7 +107,7 @@ SYSTEM_PROMPT = """\
 You are Nourish, the voice of a community Smart Food Bank Fridge. You speak out loud through a small speaker to people standing at the fridge. You are warm, upbeat and brief, and you make giving feel like a small win.
 
 # Language
-You start in English. If the person speaks another language, or asks for one, call language_detection to switch, then carry on entirely in their language: the questions, the food names, the dates, the points. Everything you receive from tools and background updates is in English; translate it naturally as you speak and never read English tool text aloud to someone speaking another language. Product and brand names stay as they are.
+You start in English. If the person speaks another language, or asks for one, call language_detection to switch, then carry on entirely in their language: the questions, the food names and the dates. Everything you receive from tools and background updates is in English; translate it naturally as you speak and never read English tool text aloud to someone speaking another language. Product and brand names stay as they are.
 
 # How you speak
 - This is spoken audio. One or two short sentences per turn, then stop and listen. No lists, no markdown, no emoji, no stage directions.
@@ -123,7 +122,7 @@ You start in English. If the person speaks another language, or asks for one, ca
 Donors, who are dropping food off, and neighbors, who are picking food up. Find out which early, without making it awkward.
 
 ## Neighbors picking up food
-This is the most important rule you have: taking food is exactly what the fridge is for. No questions about need, no limits, no judgment, and never any points, scores or leaderboard talk with someone picking up. Tell them what is in the fridge if they ask (use get_fridge_status), mention anything expiring soon so it gets eaten, and wish them well.
+This is the most important rule you have: taking food is exactly what the fridge is for. No questions about need, no limits, no judgment, and no reward or leaderboard discussion. Tell them what is in the fridge if they ask (use get_fridge_status), mention anything expiring soon so it gets eaten, and wish them well.
 
 ## Donors: walk them through it
 Follow these steps in order for every item. Do not skip steps.
@@ -134,13 +133,10 @@ The camera scans actively: it watches until something is held up, so you never w
    Barcode as the last resort: if the scan found nothing, the camera is not working, or you and the donor still cannot settle exactly which product it is, say "Can you turn the package so its barcode faces the camera?" and call scan_product_barcode right away, in that same turn. If that also finds nothing, or the barcode is not in the catalog, do not guess and do not try the barcode more than twice: ask the donor to tell you what it is and go by what they say. Loose produce like an apple has no barcode and does not need one.
 3. If they confirm, keep it. If they correct you, their word wins over the camera: repeat the corrected food and amount back once so they know you have it right.
 4. In the same turn as step 3, say: "Now please show me the expiration date." and call scan_expiration_date right away.
-5. If the scan returned a date, read it out loud, for example: "I read best by March twelfth, twenty twenty-eight." The camera gets exactly one try. If it could not read the date (glare, small print, a curved or shiny surface), do not ask them to hold it closer and do not scan again: just say "I can't quite read that, could you read the date to me?" and use what they tell you.
+5. If the scan returned a date, read it out loud, for example: "I read best by March twelfth, twenty twenty-eight." If the camera could not read the date, ask them to turn the printed date toward the camera, hold it steady in the center with good light, and retry scan_expiration_date once. After two tool attempts, ask them to read the date aloud. Never say the camera read a date that came only from the donor.
 6. Decide whether to accept it: sealed or unopened, not past its date (the tool result tells you today's date), and not something the fridge cannot take (alcohol, opened packages, home-cooked food without a label and date, anything that smells or looks off). Those are the only restrictions; do not invent others. Any other sealed, in-date food or drink is welcome, including snacks, soda and energy drinks. If it is not okay, decline kindly, explain why in one sentence, and thank them for the thought. If it is okay, tell them to place it inside. Then ask whether they have actually placed it inside, and wait for an explicit answer. Confirming its name, quantity or expiration date does not confirm placement.
-7. Once they explicitly confirm placement, say "Let me check the inside camera" and call log_donation with placement_confirmed=true for this ONE product and its quantity. This tool compares before/after inside-camera pictures and only records if it verifies a new matching item. If it cannot verify, do not announce a donation or points: ask them to make the item visible on the shelf and tell you when ready; then retry log_donation without rescanning the donor camera. Once the tool reports saved, ask if they have another item; if so go back to step 1. Include barcode digits if read. Never bundle different products into one log call.
-8. Celebrate using the points the tool returned. Say what the donation means in human terms, then thank them.
-
-# Game layer (donors only)
-Donations earn points and a spot on the community leaderboard. Keep it light: a quick cheer, their points, maybe a nudge about what the fridge is short on. Only ever quote points that log_donation returned. The generosity matters more than the score, so never pressure anyone to give more.
+7. Once they explicitly confirm placement, say "Let me check the inside camera" and call log_donation with placement_confirmed=true for this ONE product and its quantity. This tool compares before/after inside-camera pictures and only records if it verifies a new matching item. If it cannot verify, do not announce a donation: ask them to make the item visible on the shelf and tell you when ready; then retry log_donation without rescanning the donor camera. Once the tool reports saved, ask if they have another item; if so go back to step 1. Include barcode digits if read. Never bundle different products into one log call.
+8. Only after the tool reports the donation was saved, thank the donor. Do not offer or mention points, scores, rewards or a leaderboard.
 
 # Live fridge data
 You cannot see or feel anything yourself. Everything you know about the fridge arrives one of three ways:
@@ -149,7 +145,7 @@ You cannot see or feel anything yourself. Everything you know about the fridge a
 - Background updates beginning with [FRIDGE VISION CHECK]. A second, slower camera system re-examined the item or date you just scanned. If it agrees with what the donor confirmed, say nothing about it. If it only adds detail you did not have (a size, a variant, a category), quietly use the fuller description from then on, including when you log the donation. If it says the product is sold in packs, that is only about the picture on the screen: the amount is still the number of individual items the donor is holding, so one granola bar out of a box is one item, not one box. If it disagrees (a different food, a different amount, a different date, or it says the package looks opened or damaged), bring it up at your next turn in one short question, for example "My second camera counted two cans, is that right?", and go with what the donor answers. Never quietly swap in the second camera's answer: the donor must confirm any change. If the donor says they are finished while a disagreement is still open, ask about it first and only then call log_donation.
 - Messages beginning with [CAMERA RESULT]. These come from the camera, not from the person: a scan that finished after you had already spoken. Treat one exactly like a tool result and carry on with the donation steps from there.
 - Messages beginning with [FRIDGE ALERT]. These come from the fridge, not from the person. Tell the person about it right away in one calm sentence.
-If you have no data for something, say you cannot check right now. Never invent inventory, expiry dates, temperatures or points.
+If you have no data for something, say you cannot check right now. Never invent inventory, expiry dates or temperatures.
 
 # Safety
 When unsure whether food is safe, do not accept it. Sensor alerts indicate changing operating conditions, not proof of spoilage or safety. Never call monitoring coverage a food safety confidence score; ask an operator to check alerts. Do not give medical, allergy or dietary guarantees; point people to the label.
@@ -238,7 +234,7 @@ CLIENT_TOOL_SPECS = [
             "do not wait for them to say they are ready. The result also states today's date."
         ),
         "expects_response": True,
-        "response_timeout_secs": 20,
+        "response_timeout_secs": 40,
         "pre_tool_speech": "force",
         "parameters": {
             "type": "object",
@@ -255,8 +251,8 @@ CLIENT_TOOL_SPECS = [
         "type": "client",
         "name": "log_donation",
         "description": (
-            "Record only after the donor explicitly confirms the items are inside the fridge; then award points. "
-            "Returns the points earned; only quote points from this result."
+            "Record only after the donor explicitly confirms placement and the inside camera verifies it. "
+            "Returns whether the donation was saved. There are no points or rewards."
         ),
         "expects_response": True,
         "response_timeout_secs": 40,
@@ -275,7 +271,7 @@ CLIENT_TOOL_SPECS = [
                 },
                 "donor_name": {
                     "type": "string",
-                    "description": "Donor's first name or nickname for the leaderboard, if they offered one.",
+                    "description": "Donor's first name or nickname, only if they volunteered it.",
                 },
             },
             "required": ["items", "item_count", "placement_confirmed"],
@@ -432,8 +428,8 @@ class SpeakerMicInterface(AudioInterface):
         arrives as a burst of chunks. They are appended to one FIFO byte
         buffer, and the PortAudio output callback pulls exactly the number of
         frames the sound card asks for (~10-20 ms at a time).
-          * No pre-roll: the first chunk of a turn is already hundreds of ms
-            long, so playback starts on the very next callback.
+          * A 200 ms pre-roll absorbs chunk timing jitter; short utterances
+            start after 250 ms without further incoming audio.
           * Underrun = silence, not a stopped stream. The stream runs for the
             whole session, which also keeps the Bluetooth link to the JBL
             awake; a link that goes idle clips the first syllable when it wakes.
@@ -462,6 +458,10 @@ class SpeakerMicInterface(AudioInterface):
         self._playback = bytearray()
         self._playback_lock = threading.Lock()
         self._mic_queue: queue.Queue[bytes] = queue.Queue(maxsize=MIC_QUEUE_MAX_CHUNKS)
+        self._playback_ready = False
+        self._last_received = 0.0
+        self.output_underflows = 0
+        self._prebuffer_bytes = int(SAMPLE_RATE * 0.20) * BYTES_PER_FRAME
         self._last_audible = 0.0  # monotonic time real audio last went to the speaker
         self._gate_open_until = 0.0
         self._in_stream = None
@@ -482,7 +482,8 @@ class SpeakerMicInterface(AudioInterface):
                 samplerate=SAMPLE_RATE,
                 channels=1,
                 dtype="int16",
-                latency="low",
+                latency="high",
+                blocksize=640,
                 callback=self._on_speaker,
             )
             self._in_stream = _open_stream(
@@ -521,24 +522,34 @@ class SpeakerMicInterface(AudioInterface):
             sender.join(timeout=1.0)
         with self._playback_lock:
             self._playback.clear()
+            self._playback_ready = False
 
     def output(self, audio: bytes):
         with self._playback_lock:
             self._playback.extend(audio)
+            self._last_received = time.monotonic()
 
     def interrupt(self):
         with self._playback_lock:
             self._playback.clear()
+            self._playback_ready = False
         if self._on_interrupt:
             self._on_interrupt()
 
     # -- real-time callbacks -------------------------------------------------
     def _on_speaker(self, outdata, frames, time_info, status):
         needed = frames * BYTES_PER_FRAME
-        # The lock is only ever held for a memcpy, so it is safe to take here.
+        if status and getattr(status, "output_underflow", False):
+            self.output_underflows += 1
         with self._playback_lock:
-            chunk = bytes(self._playback[:needed])
-            del self._playback[:needed]
+            available = len(self._playback)
+            if not self._playback_ready:
+                self._playback_ready = available >= self._prebuffer_bytes or (available >= 2 and time.monotonic() - self._last_received >= 0.25)
+            take = min(needed, available) // BYTES_PER_FRAME * BYTES_PER_FRAME if self._playback_ready else 0
+            chunk = bytes(self._playback[:take])
+            del self._playback[:take]
+            if self._playback_ready and take < needed:
+                self._playback_ready = False
         if chunk:
             self._last_audible = time.monotonic()
         outdata[:] = chunk + b"\x00" * (needed - len(chunk))
@@ -823,11 +834,11 @@ class FridgeVoiceAgent:
         self._caption_listeners.append(listener)
 
     def on_donation_logged(self, listener: Callable[[dict], None]) -> None:
-        """Subscribe to accepted donations (dashboard / leaderboard / TigerData)."""
+        """Subscribe to accepted donations (dashboard / TigerData)."""
         self._donation_listeners.append(listener)
 
     def set_donation_store(self, store) -> None:
-        """Persist before acknowledging a donation or awarding demo points."""
+        """Persist before acknowledging a donation."""
         self._donation_store=store
 
     # ======================================================================
@@ -1087,14 +1098,14 @@ class FridgeVoiceAgent:
         self.transcript.add("scan_expiry", result, item=item)
         if not result:
             return (
-                "The camera could not read the date. Do not scan again and do not ask them to adjust the "
-                f"package: ask the donor to read the expiration date out loud, and use what they say. {today}"
+                "The camera tried OCR and Gemini but could not read the date. Ask the donor to turn the date toward "
+                f"the camera and hold it steady in the center with good light, then retry once. If still unreadable, ask them to read it aloud. {today}"
             )
         return f"Date on the package: {result}. {today}"
 
     def _tool_log_donation(self, params: dict) -> str:
         if params.get("placement_confirmed") is not True:
-            return "Not recorded. No points awarded. Ask the donor to place the items inside and explicitly confirm that they have done so before recording."
+            return "Not recorded. Ask the donor to place the items inside and explicitly confirm that they have done so before recording."
         items = str(params.get("items") or "").strip() or "unspecified items"
         try:
             count = max(1, int(float(params.get("item_count") or 1)))  # LLMs sometimes send "3" or 3.0
@@ -1106,7 +1117,6 @@ class FridgeVoiceAgent:
             "donor_name": str(params.get("donor_name") or "").strip() or None,
             # Kept as a string: UPC codes start with zeros.
             "barcode": "".join(ch for ch in str(params.get("barcode") or "") if ch.isdigit()) or None,
-            "points": count * POINTS_PER_ITEM,
             "ts": datetime.now().isoformat(timespec="seconds"),
         }
         with self._lock:
@@ -1119,17 +1129,16 @@ class FridgeVoiceAgent:
                 return str(exc)
             except Exception:
                 self._caption('notice','Donation was not saved: check the database connection.')
-                return 'Donation was not saved. No points were awarded. Ask the operator to check the database connection before retrying.'
+                return 'Donation was not saved. Ask the operator to check the database connection before retrying.'
         with self._lock:
             self._pending_products = []
             self.donations.append(record)
-            total = sum(donation["points"] for donation in self.donations)
         self.transcript.add("donation", items, **{k: v for k, v in record.items() if k not in ("items", "ts")})
         self._caption("product", "")
-        print(f"  [donation] {count} item(s): {items}  (+{record['points']} pts)")
-        self._caption("donation", f"+{record['points']} points  |  {total} today")
+        print(f"  [donation] {count} item(s): {items} (saved)")
+        self._caption("donation", f"Donation saved: {count} item(s)")
         self._notify(self._donation_listeners, record)
-        return f"Logged {count} item(s): {items}. Points earned: {record['points']}. Total points today: {total}."
+        return f"Saved {count} item(s): {items}. Thank the donor."
 
     # ======================================================================
     # Conversation events (run on the SDK's socket thread: keep them quick)

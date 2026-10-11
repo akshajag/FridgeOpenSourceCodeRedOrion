@@ -865,7 +865,7 @@ class LocalVision:
             options.intra_op_num_threads = 2
             options.add_session_config_entry("session.intra_op.allow_spinning", "0")
             yolo = onnxruntime.InferenceSession(str(YOLOX_PATH), options, providers=["CPUExecutionProvider"])
-            ocr = RapidOCR()
+            ocr = RapidOCR(params={"EngineConfig.onnxruntime.intra_op_num_threads": 2, "EngineConfig.onnxruntime.inter_op_num_threads": 1})
             dummy = np.zeros((360, 640, 3), np.uint8)
             ocr(dummy)
             self._yolo = yolo
@@ -1037,6 +1037,13 @@ class LocalVision:
             else:
                 previous = None
 
+        if self._fallback is not None:
+            for attempt in range(2):
+                frame = self._get_frame()
+                if frame is None: break
+                answer = self._ask_fallback(lambda: self._fallback.read_expiry_frame(frame, item))
+                if answer: return answer
+                if attempt == 0: time.sleep(0.6)
         return ""
 
     def scan_barcode(self) -> str:

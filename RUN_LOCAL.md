@@ -32,8 +32,14 @@ The launcher stops only services it starts when its window closes. If you alread
 
 `run_fridge.py` is the entry point. `fridge_ui.py` is the voice/camera window; `fridge_voice_agent.py` defines the conversation and client tools; `fridge_placement.py` gates recording on an inside-camera comparison.
 
-Voice flow: say you are donating, show one product to the Mac camera, answer identity/quantity/date questions, place it on a visible fridge shelf, and say “I've put it inside.” Nourish compares the Logitech frame with a baseline captured BEFORE the initial scan. It only records a newly visible matching product, with the expected quantity, placed inside. Failed/unclear checks keep the same baseline and donation ID for a retry; nothing is awarded until saved. Donate different products one at a time. This is visual evidence, not identity authentication or proof of safety. Keep the Logitech camera fixed, pointing inside with the label visible and enough light. A picture of food held outside the fridge fails the placement check.
+Voice flow: say you are donating, show one product to the Mac camera, answer identity/quantity/date questions, place it on a visible fridge shelf, and say “I've put it inside.” Nourish compares the Logitech frame with a baseline captured BEFORE the initial scan. It only records a newly visible matching product, with the expected quantity, placed inside. Failed/unclear checks keep the same baseline and donation ID for a retry; inventory changes only after the donation is saved. Donate different products one at a time. This is visual evidence, not identity authentication or proof of safety. Keep the Logitech camera fixed, pointing inside with the label visible and enough light. A picture of food held outside the fridge fails the placement check.
 
 To restart: close the app window using its close button (or press Ctrl+C in the terminal that launched it). Run `.venv/bin/python run_fridge.py --voice` again from this folder. Wait until the previous window closes; only one camera app should run. Restarting does NOT clear inventory or historical data.
 
 To change the speaking voice: ElevenLabs → Agents → Smart Food Bank Fridge - Nourish → Voice & Language, choose/preview a voice, then save/publish if shown. Restart the local voice app for a new conversation to use it. The normal launcher preserves dashboard voice choices. Avoid `--configure-agent` unless you intend to reapply the repository's complete default agent configuration.
+
+## Date scans and audio
+
+The date scanner tries local OCR, then Gemini on fresh camera frames if OCR cannot read a date. The voice guide asks for a steady, well-lit view of the printed date and retries once before asking the donor to read it aloud. Never treat an unreadable date as a verified expiry.
+
+The donation flow has no points, rewards, or leaderboard. Audio uses matching 16 kHz PCM formats, a 200 ms playback buffer, and limited OCR worker threads to reduce interruptions. The selected ElevenLabs voice is `DYkrAHD8iwork3YSUBbs`. If changing speakers, select the audio device before launching a new conversation.

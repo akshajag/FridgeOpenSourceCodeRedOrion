@@ -30,7 +30,7 @@ class PlacementGate:
                 or result.get('quantity_increased') is not True or result.get('item_match') != 'confirmed'
                 or not isinstance(result.get('added_count'),int) or isinstance(result.get('added_count'),bool)
                 or result['added_count'] < int(count)):
-            raise PlacementPending('The inside camera cannot yet verify the new item. No points awarded. Ask the donor to place it visibly on the fridge shelf, uncover its label, and say when ready to check again.')
+            raise PlacementPending('The inside camera cannot yet verify the new item. Ask the donor to place it visibly on the fridge shelf, uncover its label, and say when ready to check again.')
         return result
 
     def complete(self):

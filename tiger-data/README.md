@@ -14,6 +14,8 @@ Database created: **foodbank-smart-fridge**, service `ym0p9v6xv2`, project `szwh
 
 ## Start in Cursor
 
+Collection on Saleh's Mac is deliberately paused until the sensors are in the fridge and he says **ready**. A local ignored `.sensor-paused` file blocks bridge startup and further writes. Keep it in place during bench testing. To pause an existing bridge, create this file and stop the bridge; an already in-flight write may finish. Remove the file only when explicitly ready to collect, then start the sensor task. `npm run verify` performs temporary database writes, so do not run that task when all database writes must stay paused.
+
 Open `FOODBANK.code-workspace`. Run tasks through Terminal → Run Task:
 
 1. **Tiger: verify database** — real database writes/reads inside a transaction that rolls back all test rows.
@@ -29,6 +31,20 @@ Expected firmware line:
 Temperature: 22.50 C / 72.50 F | Moisture raw: 0 | Air raw: 20
 ```
 Diagnostics are skipped. Moisture and air-quality readings remain raw/unvalidated, not relative humidity, an AQI or a food safety verdict. Ingest timestamps currently come from the Mac. The firmware emits ADC values 0–1023.
+
+## Accelerometer / movement diagnostics
+
+`hardware/fridge_all_sensors/fridge_all_sensors.ino` adds the Grove MMA7660FC (±1.5g, v1.3) on I²C address `0x4C` alongside the SPA06 at `0x77`. It preserves the existing open-drain A4/A5 bus and does not enable 5V internal pull-ups. No extra Arduino library is required. MPU6050/ADXL345 libraries are not for this sensor.
+
+Connect via a spare Grove I²C socket with the shield at 3V3, power disconnected while wiring. Secure the sensor firmly to the main fridge body with an insulated mount, away from water/condensation; leave INT unused. Do not mount on the door or a loose shelf.
+
+The firmware samples acceleration roughly 20 times/sec and appends diagnostics to the once/sec temperature line:
+```
+ | Accel g: 0.048,-0.048,1.048 | Motion peak g: 0.151 | Motion: 0
+```
+X/Y/Z include gravity: around 1g on the vertical axis at rest is normal. `motion_peak_g` is the largest consecutive-sample vector change, not speed/distance. The provisional 0.20g threshold flags movement only; it is not an armed theft alarm, and slow smooth rolling may be missed. Tune against stationary compressor operation, door opening and deliberate rolling after mounting. Do not claim theft detection until those physical tests and an explicit armed/disarmed workflow are implemented.
+
+Once collection is resumed, the bridge stores `accelerometer_available`, `acceleration_g`, `motion_peak_g`, `movement_detected`, `motion_threshold_g`, and `motion_status` inside each sensor row's existing `metadata` JSON. It accumulates peaks/flags between five-second writes, including short bumps between saved readings. No table migration is needed. Missing accelerometer data is marked unavailable rather than fabricated as zero. The sensors API already returns the metadata for teammate integration. There are no motion notifications yet, and no durable offline buffering.
 
 ## Teammate integration
 

@@ -1,3 +1,4 @@
+import { riskAssessment } from "./risk.js";
 // A completeness percentage is a measurement of data availability, not a
 // probability that food is safe. Alerts are independent, with explicit units.
 const finite=n=>typeof n==='number'&&Number.isFinite(n);
@@ -57,8 +58,19 @@ export function conditionMetrics(rows,baseline,{now=new Date(),windowSeconds=300
   const motion=points.filter(p=>p.t>=end-10000&&valid(p,'movement')&&p.row.metadata.motion_peak_g>limits.movement).at(-1);
   conditions.push({key:'movement',label:'Movement detected',state:channels.movement.status!=='reporting'?'unknown':motion?'alert':'normal',since:motion?new Date(motion.t).toISOString():null,value:valid(latest,'movement')?latest.row.metadata.motion_peak_g:null,recent_peak_g:motion?.row.metadata.motion_peak_g??null,threshold:limits.movement,comparison:'>',unit:'g',hold_seconds:10});
   const alerts=conditions.filter(c=>c.state==='alert');
+  const trendPoints=points.filter(p=>p.t>=end-60000&&valid(p,'temperature'));
+  let slope=null;
+  if(trendPoints.length>=6 && trendPoints.at(-1).t-trendPoints[0].t>=15000 && trendPoints.every((p,i)=>i===0||p.t-trendPoints[i-1].t<=maxGapSeconds*1000)) {
+    const ts=trendPoints.map(p=>(p.t-trendPoints[0].t)/60000);
+    const meanT=ts.reduce((a,b)=>a+b,0)/ts.length;
+    const meanY=trendPoints.reduce((n,p)=>n+p.row.temperature_c,0)/ts.length;
+    const denominator=ts.reduce((n,t)=>n+(t-meanT)**2,0);
+    if(denominator>0)slope=ts.reduce((n,t,i)=>n+(t-meanT)*(trendPoints[i].row.temperature_c-meanY),0)/denominator;
+  }
+  const risk=riskAssessment(conditions,baseline,{evaluatedAt:new Date(end).toISOString(),lastReadingAgeSeconds:age,coveragePercent:coverage(Object.keys(fields)),temperatureSlopeCPerMinute:slope});
+
   return {
-    evaluated_at:new Date(end).toISOString(),baseline,
+    evaluated_at:new Date(end).toISOString(),baseline,risk,
     monitoring_confidence_percent:coverage(Object.keys(fields)),
     confidence_definition:'Percent of the last 5 minutes covered by consecutive valid readings from all four channels, no more than 15 seconds apart. No extrapolation; not a food safety probability.',
     window_seconds:windowSeconds,last_reading_at:latest?new Date(latest.t).toISOString():null,last_reading_age_seconds:age,

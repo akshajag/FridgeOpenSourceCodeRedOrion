@@ -151,6 +151,11 @@ export function formatRelative(iso: string, now = Date.now()): string {
   const diff = new Date(iso).getTime() - now;
   const abs = Math.abs(diff);
   const future = diff > 0;
+  if (abs < 60_000) {
+    const seconds = Math.floor(abs / 1_000);
+    if (seconds < 2) return "just now";
+    return future ? `in ${seconds}s` : `${seconds}s ago`;
+  }
   const unit = abs < HOUR_MS ? [Math.max(1, Math.round(abs / 60_000)), "min"] : abs < DAY_MS ? [Math.round(abs / HOUR_MS), "h"] : [Math.round(abs / DAY_MS), "d"];
   const [n, u] = unit as [number, string];
   const label = u === "min" ? `${n} min` : `${n}${u}`;

@@ -30,7 +30,7 @@ const ROLES = [
     icon: HandHeart,
     title: "Donors",
     lead: "Bring food where it is needed and watch it count.",
-    items: ["Nearby fridges with what they have and need", "Missions with clear eligibility and deadlines", "Points only for operator-verified donations", "Optional Solana Devnet rewards"],
+    items: ["Nearby fridges with what they have and need", "Missions with clear eligibility and deadlines", "Neighborhood territories and impact leaderboards", "Optional Solana Devnet rewards"],
     href: "/demo",
     cta: "See the donor dashboard",
   },

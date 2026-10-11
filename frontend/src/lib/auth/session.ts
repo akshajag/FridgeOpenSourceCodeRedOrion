@@ -2,7 +2,12 @@ import "server-only";
 import { trustedDevice, DEVICE_COOKIE } from "@/lib/hardware/device";
 import { cookies, headers } from "next/headers";
 import type { Membership, Role } from "@/types";
-import { DEMO_COOKIE, isClerkConfigured, isDemoPersona, type DemoPersona } from "./config";
+import {
+  DEMO_COOKIE,
+  isClerkConfigured,
+  isDemoPersona,
+  type DemoPersona,
+} from "./config";
 import { DEMO_IDS } from "@/lib/demo/seed";
 
 /**
@@ -28,10 +33,25 @@ export type FridgeySession =
       onboarded: true;
     };
 
-const DEMO_USERS: Record<DemoPersona, { userId: string; name: string; memberships: Membership[] }> = {
-  food_bank: { userId: DEMO_IDS.foodBankUser, name: "Maya Okafor", memberships: [{ role: "food_bank", organizationId: DEMO_IDS.organization }] },
-  operator: { userId: DEMO_IDS.operatorUser, name: "Daniel Reyes", memberships: [{ role: "operator", fridgeId: DEMO_IDS.operatorFridge }] },
-  donor: { userId: DEMO_IDS.donorUser, name: "Priya Natarajan", memberships: [{ role: "donor" }] },
+const DEMO_USERS: Record<
+  DemoPersona,
+  { userId: string; name: string; memberships: Membership[] }
+> = {
+  food_bank: {
+    userId: DEMO_IDS.foodBankUser,
+    name: "Maya Okafor",
+    memberships: [{ role: "food_bank", organizationId: DEMO_IDS.organization }],
+  },
+  operator: {
+    userId: DEMO_IDS.operatorUser,
+    name: "Daniel Reyes",
+    memberships: [{ role: "operator", fridgeId: DEMO_IDS.operatorFridge }],
+  },
+  donor: {
+    userId: DEMO_IDS.donorUser,
+    name: "Priya Natarajan",
+    memberships: [{ role: "donor" }],
+  },
 };
 
 export async function getDemoPersona(): Promise<DemoPersona | null> {
@@ -47,23 +67,57 @@ export async function getSession(): Promise<FridgeySession | null> {
     const { userId } = await auth();
     if (userId) {
       const user = await currentUser();
-      const metadata = (user?.publicMetadata ?? {}) as { memberships?: Membership[]; onboarded?: boolean };
+      const metadata = (user?.publicMetadata ?? {}) as {
+        memberships?: Membership[];
+        onboarded?: boolean;
+      };
+      const memberships: Membership[] =
+        Array.isArray(metadata.memberships) && metadata.memberships.length
+          ? [...metadata.memberships]
+          : [{ role: "donor" }];
+      if (
+        trustedDevice(
+          (await headers()).get("host"),
+          (await cookies()).get(DEVICE_COOKIE)?.value,
+        )
+      ) {
+        const fridgeId = process.env.FRIDGE_ID ?? "orion-fridge-01";
+        if (
+          !memberships.some(
+            (m) => m.role === "operator" && m.fridgeId === fridgeId,
+          )
+        )
+          memberships.push({ role: "operator", fridgeId });
+      }
       return {
         mode: "live",
         userId,
-        name: user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "Member",
+        name:
+          user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "Member",
         email: user?.primaryEmailAddress?.emailAddress ?? "",
-        memberships: Array.isArray(metadata.memberships) ? metadata.memberships : [],
-        onboarded: Boolean(metadata.onboarded),
+        memberships,
+        onboarded: Boolean(metadata.onboarded) || !metadata.memberships?.length,
       };
     }
   }
-  if (process.env.FRIDGE_HARDWARE_MODE === "1" && !isClerkConfigured()) {
+  if (process.env.FRIDGE_HARDWARE_MODE === "1") {
     const host = (await headers()).get("host")?.split(":")[0];
-    if (trustedDevice(host ?? null, (await cookies()).get(DEVICE_COOKIE)?.value)) return {
-      mode: "live", userId: "local-hardware-operator", name: "Local fridge operator", email: "", onboarded: true,
-      memberships: [{ role: "operator", fridgeId: process.env.FRIDGE_ID ?? "orion-fridge-01" }],
-    };
+    if (
+      trustedDevice(host ?? null, (await cookies()).get(DEVICE_COOKIE)?.value)
+    )
+      return {
+        mode: "live",
+        userId: "local-hardware-operator",
+        name: "Local fridge operator",
+        email: "",
+        onboarded: true,
+        memberships: [
+          {
+            role: "operator",
+            fridgeId: process.env.FRIDGE_ID ?? "orion-fridge-01",
+          },
+        ],
+      };
   }
   const persona = await getDemoPersona();
   if (persona) {

@@ -97,7 +97,8 @@ export type FoodCategory =
   | "beverages"
   | "pantry";
 
-export type InventoryStatus = "available" | "needs_review" | "reserved" | "removed" | "expired";
+export type InventoryStatus =
+  "available" | "needs_review" | "reserved" | "removed" | "expired";
 
 export type RecognitionSource = "gemini" | "demo_recognition" | "manual";
 
@@ -142,7 +143,8 @@ export interface InventoryEvent {
   at: ISODate;
 }
 
-export type SensorMetric = "temperature" | "humidity" | "air_quality" | "moisture" | "movement";
+export type SensorMetric =
+  "temperature" | "humidity" | "air_quality" | "moisture" | "movement";
 
 export interface SensorReading {
   id: string;
@@ -275,7 +277,8 @@ export interface LeaderboardEvent {
   at: ISODate;
 }
 
-export type RewardStatus = "eligible" | "pending_verification" | "approved" | "paid" | "rejected";
+export type RewardStatus =
+  "eligible" | "pending_verification" | "approved" | "paid" | "rejected";
 
 export interface RewardAllocation {
   id: string;
@@ -303,7 +306,38 @@ export interface RewardTransaction {
 }
 
 export interface FridgeyDataset {
-  hardwareConditions?: { confidence: number; moisture: number | null; movement: number | null; moistureThreshold: number; movementThreshold: number };
+  hardwareRisk?: {
+    version: string;
+    evaluated_at: string;
+    overall_score: number | null;
+    highest_observed_score: number | null;
+    coverage_percent: number;
+    temperature_slope_c_per_minute: number | null;
+    channels: {
+      key: string;
+      label: string;
+      score: number | null;
+      level: string;
+      value: number | null;
+      threshold: number;
+      unit: string;
+      state: string;
+      reference: number;
+      duration_seconds: number;
+      recommendation: string;
+    }[];
+    definition: string;
+    dew_point: { available: boolean; reason: string };
+  };
+  hardwareEvaluatedAt?: string;
+  hardwareSampleAgeSeconds?: number | null;
+  hardwareConditions?: {
+    confidence: number;
+    moisture: number | null;
+    movement: number | null;
+    moistureThreshold: number;
+    movementThreshold: number;
+  };
   users: User[];
   organizations: Organization[];
   fridges: Fridge[];

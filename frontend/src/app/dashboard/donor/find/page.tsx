@@ -1,13 +1,5 @@
-import { Suspense } from "react";
-import { FindFridge } from "@/components/donor/find-fridge";
-import { Skeleton } from "@/components/ui/skeleton";
-
-export const metadata = { title: "Find a fridge · Donor" };
-
+import { CommunityBoard } from "@/components/community/community-board";
+export const metadata = { title: "Find a fridge · Nourish" };
 export default function Page() {
-  return (
-    <Suspense fallback={<Skeleton className="h-[520px]" />}>
-      <FindFridge />
-    </Suspense>
-  );
+  return <CommunityBoard />;
 }

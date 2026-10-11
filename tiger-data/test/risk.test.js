@@ -1,0 +1,16 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {conditionMetrics} from '../conditions.js';
+import {deviationScore} from '../risk.js';
+const baseline={temperature_c:-17.2,moisture_raw:0,air_quality_raw:51,thresholds:{temperature_rise_c:2,moisture_increase_raw:10,air_increase_raw:30,motion_peak_g:.2}};
+const now=new Date('2026-10-11T10:00:00Z');
+const rows=(overrides={})=>Array.from({length:61},(_,i)=>({captured_at:new Date(+now-(60-i)*1000).toISOString(),temperature_c:-17.2,moisture_raw:0,air_quality_raw:51,metadata:{accelerometer_available:true,motion_peak_g:.12},...overrides}));
+const result=values=>conditionMetrics(values,baseline,{now}).risk;
+const channel=(risk,key)=>risk.channels.find(c=>c.key===key);
+test('baseline conditions have zero anomaly and no invented dewpoint',()=>{const risk=result(rows());assert.equal(risk.overall_score,0);assert.equal(risk.dew_point.available,false);});
+test('wetness rises monotonically; a moderate signal is not presented as a failure probability',()=>{const scores=[0,5,10,37,118].map(moisture_raw=>channel(result(rows({moisture_raw})),'moisture').score);assert.deepEqual([...scores].sort((a,b)=>a-b),scores);assert.ok(scores[2]>=40&&scores[2]<=50);assert.ok(scores[4]<=95);});
+test('quiet sensors cannot dilute a large cooling anomaly',()=>{const risk=result(rows({temperature_c:20}));assert.equal(risk.overall_score,95);assert.equal(channel(risk,'moisture').score,0);});
+test('movement uses a brief recent peak and clears after the hold expires',()=>{const readings=rows();readings[55].metadata.motion_peak_g=.4;assert.ok(channel(result(readings),'movement').score>=70);readings[55].metadata.motion_peak_g=.12;readings[40].metadata.motion_peak_g=.4;assert.equal(channel(result(readings),'movement').score,0);});
+test('missing or stale sensors make overall risk unknown rather than healthy',()=>{const missing=rows({metadata:{accelerometer_available:false}});assert.equal(result(missing).overall_score,null);assert.equal(channel(result(missing),'movement').score,null);assert.equal(result(rows().slice(0,20)).overall_score,null);});
+test('continuous warming is estimated by least-squares slope in C/min',()=>{const rising=rows().map((r,i)=>({...r,temperature_c:-17.2+i/60}));assert.ok(Math.abs(result(rising).temperature_slope_c_per_minute-1)<1e-8);});
+test('normalization remains continuous and bounded',()=>{assert.equal(deviationScore(0),0);assert.equal(deviationScore(1),40);assert.ok(deviationScore(1.001)>40&&deviationScore(1.001)<40.1);assert.ok(deviationScore(100)<95.001);assert.equal(deviationScore(NaN),null);});

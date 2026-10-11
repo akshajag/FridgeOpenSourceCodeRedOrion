@@ -25,23 +25,38 @@ function gate(req: NextRequest, signedIn: boolean) {
   return NextResponse.redirect(url);
 }
 
-let clerkHandler: ((req: NextRequest, evt: unknown) => Promise<Response> | Response) | null = null;
+let clerkHandler:
+  ((req: NextRequest, evt: unknown) => Promise<Response> | Response) | null =
+  null;
 
 export default async function proxy(req: NextRequest, evt: unknown) {
-  if (process.env.FRIDGE_HARDWARE_MODE === "1" && (/^\/(dashboard)(\/|$)/.test(req.nextUrl.pathname)) && !trustedDevice(req.headers.get("host"),req.cookies.get(DEVICE_COOKIE)?.value)) {
-    const url=req.nextUrl.clone();url.pathname="/connect";url.search="";url.searchParams.set("next",req.nextUrl.pathname);return NextResponse.redirect(url);
-  }
-  if (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY) {
+  if (
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
+    process.env.CLERK_SECRET_KEY
+  ) {
     if (!clerkHandler) {
       const { clerkMiddleware } = await import("@clerk/nextjs/server");
       clerkHandler = clerkMiddleware(async (auth, request) => {
         const { userId } = await auth();
-        return gate(request as NextRequest, Boolean(userId));
+        return gate(
+          request as NextRequest,
+          Boolean(userId) ||
+            trustedDevice(
+              request.headers.get("host"),
+              request.cookies.get(DEVICE_COOKIE)?.value,
+            ),
+        );
       }) as unknown as typeof clerkHandler;
     }
     return clerkHandler!(req, evt);
   }
-  return gate(req, trustedDevice(req.headers.get("host"),req.cookies.get(DEVICE_COOKIE)?.value));
+  return gate(
+    req,
+    trustedDevice(
+      req.headers.get("host"),
+      req.cookies.get(DEVICE_COOKIE)?.value,
+    ),
+  );
 }
 
 export const config = {

@@ -13,8 +13,8 @@ export function ClerkGate({ children }: { children: ReactNode }) {
     <ClerkProvider
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
-      signInFallbackRedirectUrl="/onboarding"
-      signUpFallbackRedirectUrl="/onboarding"
+      signInFallbackRedirectUrl="/dashboard/donor"
+      signUpFallbackRedirectUrl="/dashboard/donor"
       appearance={{
         variables: {
           colorPrimary: "#316b54",

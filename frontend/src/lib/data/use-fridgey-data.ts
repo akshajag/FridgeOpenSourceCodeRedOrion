@@ -27,8 +27,20 @@ export interface FridgeyData {
 }
 
 const EMPTY: FridgeyDataset = {
-  users: [], organizations: [], fridges: [], inventory: [], inventoryEvents: [], sensorReadings: [], alerts: [],
-  missions: [], donations: [], events: [], connections: [], leaderboard: [], rewards: [], rewardTransactions: [],
+  users: [],
+  organizations: [],
+  fridges: [],
+  inventory: [],
+  inventoryEvents: [],
+  sensorReadings: [],
+  alerts: [],
+  missions: [],
+  donations: [],
+  events: [],
+  connections: [],
+  leaderboard: [],
+  rewards: [],
+  rewardTransactions: [],
 };
 
 export function useFridgeyData(): FridgeyData {
@@ -39,13 +51,19 @@ export function useFridgeyData(): FridgeyData {
   const queryClient = useQueryClient();
 
   const live = useQuery({
-    queryKey: ["fridgey-dataset"],
+    queryKey: ["fridgey-dataset", currentUserId],
     queryFn: fetchDataset,
-    refetchInterval: 2000,
+    refetchInterval: 5000,
     enabled: mode === "live",
   });
 
-  const remoteActions = useMemo(() => createRemoteActions(() => queryClient.invalidateQueries({ queryKey: ["fridgey-dataset"] })), [queryClient]);
+  const remoteActions = useMemo(
+    () =>
+      createRemoteActions(() =>
+        queryClient.invalidateQueries({ queryKey: ["fridgey-dataset"] }),
+      ),
+    [queryClient],
+  );
 
   if (mode === "live") {
     return {
@@ -57,5 +75,11 @@ export function useFridgeyData(): FridgeyData {
       currentUserId,
     };
   }
-  return { mode, ready: demoHydrated, data: demoData, actions: demoActions, currentUserId };
+  return {
+    mode,
+    ready: demoHydrated,
+    data: demoData,
+    actions: demoActions,
+    currentUserId,
+  };
 }

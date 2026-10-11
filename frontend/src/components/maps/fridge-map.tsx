@@ -5,7 +5,14 @@
  * If tiles fail to load, the parent should show a list view; this component reports `onTileError`.
  */
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Map as MapLibreMap, Marker, NavigationControl, setWorkerUrl, type GeoJSONSource, type ErrorEvent } from "maplibre-gl";
+import {
+  Map as MapLibreMap,
+  Marker,
+  NavigationControl,
+  setWorkerUrl,
+  type GeoJSONSource,
+  type ErrorEvent,
+} from "maplibre-gl";
 import { useEffect, useRef } from "react";
 import type { Fridge, GeoPoint } from "@/types";
 import { cn } from "@/lib/utils";
@@ -14,7 +21,9 @@ import { cn } from "@/lib/utils";
 // cannot resolve MapLibre's worker relative to the bundled module.
 setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
 
-export const MAP_STYLE = process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? "https://tiles.openfreemap.org/styles/positron";
+export const MAP_STYLE =
+  process.env.NEXT_PUBLIC_MAP_STYLE_URL ??
+  "https://tiles.openfreemap.org/styles/positron";
 
 export interface FridgeMapProps {
   fridges: Fridge[];
@@ -24,30 +33,56 @@ export interface FridgeMapProps {
   radiusKm?: number;
   className?: string;
   onTileError?: () => void;
+  territories?: GeoJSON.FeatureCollection;
   /** Fridges whose precise location is hidden get a wider, softer marker. */
   approximateIds?: string[];
 }
 
-function markerElement(fridge: Fridge, selected: boolean, approximate: boolean) {
+function markerElement(
+  fridge: Fridge,
+  selected: boolean,
+  approximate: boolean,
+) {
   const el = document.createElement("button");
   el.type = "button";
   el.className = cn(
     "fridge-marker group relative flex items-center justify-center rounded-full border-2 bg-card shadow-raised transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-evergreen",
-    selected ? "size-9 scale-110 border-evergreen" : "size-7 border-card hover:scale-110",
+    selected
+      ? "size-9 scale-110 border-evergreen"
+      : "size-7 border-card hover:scale-110",
   );
   el.setAttribute("aria-label", `${fridge.name}, ${fridge.status}`);
   const dot = document.createElement("span");
-  dot.className = cn("block rounded-[2px]", selected ? "size-3" : "size-2.5", fridge.status === "online" ? "bg-evergreen" : fridge.status === "degraded" ? "bg-amber" : "bg-critical");
+  dot.className = cn(
+    "block rounded-[2px]",
+    selected ? "size-3" : "size-2.5",
+    fridge.status === "online"
+      ? "bg-evergreen"
+      : fridge.status === "degraded"
+        ? "bg-amber"
+        : "bg-critical",
+  );
   el.appendChild(dot);
   if (approximate) {
     const ring = document.createElement("span");
-    ring.className = "pointer-events-none absolute -inset-4 rounded-full border border-dashed border-sensor/60 bg-sensor/5";
+    ring.className =
+      "pointer-events-none absolute -inset-4 rounded-full border border-dashed border-sensor/60 bg-sensor/5";
     el.appendChild(ring);
   }
   return el;
 }
 
-export function FridgeMap({ fridges, selectedId, onSelect, center, radiusKm, className, onTileError, approximateIds = [] }: FridgeMapProps) {
+export function FridgeMap({
+  fridges,
+  selectedId,
+  onSelect,
+  center,
+  radiusKm,
+  className,
+  onTileError,
+  territories,
+  approximateIds = [],
+}: FridgeMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Map<string, Marker>>(new Map());
@@ -59,7 +94,8 @@ export function FridgeMap({ fridges, selectedId, onSelect, center, radiusKm, cla
   // Initialize map once.
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-    const initial = center ?? fridges[0]?.location ?? { lat: 29.7426, lng: -95.3906 };
+    const initial = center ??
+      fridges[0]?.location ?? { lat: 29.7426, lng: -95.3906 };
     const map = new MapLibreMap({
       container: containerRef.current,
       style: MAP_STYLE,
@@ -82,6 +118,35 @@ export function FridgeMap({ fridges, selectedId, onSelect, center, radiusKm, cla
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !territories) return;
+    const draw = () => {
+      const source = map.getSource("territories") as GeoJSONSource | undefined;
+      if (source) source.setData(territories);
+      else {
+        map.addSource("territories", { type: "geojson", data: territories });
+        map.addLayer({
+          id: "territories-fill",
+          type: "fill",
+          source: "territories",
+          paint: { "fill-color": ["get", "color"], "fill-opacity": 0.28 },
+        });
+        map.addLayer({
+          id: "territories-border",
+          type: "line",
+          source: "territories",
+          paint: { "line-color": ["get", "color"], "line-width": 2 },
+        });
+      }
+    };
+    if (map.isStyleLoaded()) draw();
+    else map.once("load", draw);
+    return () => {
+      map.off("load", draw);
+    };
+  }, [territories]);
+
   // Sync markers.
   useEffect(() => {
     const map = mapRef.current;
@@ -96,9 +161,15 @@ export function FridgeMap({ fridges, selectedId, onSelect, center, radiusKm, cla
     }
     for (const fridge of fridges) {
       existing.get(fridge.id)?.remove();
-      const el = markerElement(fridge, fridge.id === selectedId, approximateIds.includes(fridge.id));
+      const el = markerElement(
+        fridge,
+        fridge.id === selectedId,
+        approximateIds.includes(fridge.id),
+      );
       el.addEventListener("click", () => onSelectRef.current?.(fridge.id));
-      const marker = new Marker({ element: el, anchor: "center" }).setLngLat([fridge.location.lng, fridge.location.lat]).addTo(map);
+      const marker = new Marker({ element: el, anchor: "center" })
+        .setLngLat([fridge.location.lng, fridge.location.lat])
+        .addTo(map);
       existing.set(fridge.id, marker);
     }
   }, [fridges, selectedId, approximateIds]);
@@ -108,7 +179,12 @@ export function FridgeMap({ fridges, selectedId, onSelect, center, radiusKm, cla
     const map = mapRef.current;
     if (!map || !selectedId) return;
     const f = fridges.find((x) => x.id === selectedId);
-    if (f) map.easeTo({ center: [f.location.lng, f.location.lat], zoom: Math.max(map.getZoom(), 12.5), duration: 600 });
+    if (f)
+      map.easeTo({
+        center: [f.location.lng, f.location.lat],
+        zoom: Math.max(map.getZoom(), 12.5),
+        duration: 600,
+      });
   }, [selectedId, fridges]);
 
   // Search radius circle.
@@ -117,28 +193,67 @@ export function FridgeMap({ fridges, selectedId, onSelect, center, radiusKm, cla
     if (!map || !center) return;
     const draw = () => {
       const src = map.getSource("radius") as GeoJSONSource | undefined;
-      const data = radiusKm ? circlePolygon(center, radiusKm) : { type: "FeatureCollection" as const, features: [] };
+      const data = radiusKm
+        ? circlePolygon(center, radiusKm)
+        : { type: "FeatureCollection" as const, features: [] };
       if (src) src.setData(data);
       else {
         map.addSource("radius", { type: "geojson", data });
-        map.addLayer({ id: "radius-fill", type: "fill", source: "radius", paint: { "fill-color": "#427da8", "fill-opacity": 0.06 } });
-        map.addLayer({ id: "radius-line", type: "line", source: "radius", paint: { "line-color": "#427da8", "line-width": 1, "line-dasharray": [2, 2] } });
+        map.addLayer({
+          id: "radius-fill",
+          type: "fill",
+          source: "radius",
+          paint: { "fill-color": "#427da8", "fill-opacity": 0.06 },
+        });
+        map.addLayer({
+          id: "radius-line",
+          type: "line",
+          source: "radius",
+          paint: {
+            "line-color": "#427da8",
+            "line-width": 1,
+            "line-dasharray": [2, 2],
+          },
+        });
       }
     };
     if (map.isStyleLoaded()) draw();
     else map.once("load", draw);
   }, [center, radiusKm]);
 
-  return <div ref={containerRef} className={cn("h-full w-full rounded-lg", className)} role="region" aria-label="Map of community fridges" />;
+  return (
+    <div
+      ref={containerRef}
+      className={cn("h-full w-full rounded-lg", className)}
+      role="region"
+      aria-label="Map of community fridges"
+    />
+  );
 }
 
-function circlePolygon(center: GeoPoint, km: number, points = 64): GeoJSON.FeatureCollection {
+function circlePolygon(
+  center: GeoPoint,
+  km: number,
+  points = 64,
+): GeoJSON.FeatureCollection {
   const coords: [number, number][] = [];
   const latR = km / 110.574;
   const lngR = km / (111.32 * Math.cos((center.lat * Math.PI) / 180));
   for (let i = 0; i <= points; i++) {
     const a = (i / points) * Math.PI * 2;
-    coords.push([center.lng + lngR * Math.cos(a), center.lat + latR * Math.sin(a)]);
+    coords.push([
+      center.lng + lngR * Math.cos(a),
+      center.lat + latR * Math.sin(a),
+    ]);
   }
-  return { type: "FeatureCollection", features: [{ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [coords] } }] };
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: {},
+        geometry: { type: "Polygon", coordinates: [coords] },
+      },
+    ],
+  };
 }

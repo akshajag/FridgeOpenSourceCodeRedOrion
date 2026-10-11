@@ -24,16 +24,46 @@ export interface NavItem {
   exact?: boolean;
 }
 
-export const NAV: Record<Role, { title: string; home: string; items: NavItem[] }> = {
+export const NAV: Record<
+  Role,
+  { title: string; home: string; items: NavItem[] }
+> = {
   food_bank: {
     title: "Food bank",
     home: "/dashboard/food-bank",
     items: [
-      { href: "/dashboard/food-bank", label: "Overview", icon: LayoutDashboard, exact: true },
-      { href: "/dashboard/food-bank/nearby", label: "Nearby fridges", icon: MapPinned },
+      {
+        href: "/dashboard/food-bank",
+        label: "Overview",
+        icon: LayoutDashboard,
+        exact: true,
+      },
+      {
+        href: "/dashboard/food-bank/community",
+        label: "Community map",
+        icon: MapPinned,
+      },
+      {
+        href: "/dashboard/food-bank/leaderboard",
+        label: "Impact leaderboard",
+        icon: Trophy,
+      },
+      {
+        href: "/dashboard/food-bank/nearby",
+        label: "Nearby fridges",
+        icon: MapPinned,
+      },
       { href: "/dashboard/food-bank/network", label: "Network", icon: Network },
-      { href: "/dashboard/food-bank/missions", label: "Rescue missions", icon: Flag },
-      { href: "/dashboard/food-bank/events", label: "Community events", icon: CalendarRange },
+      {
+        href: "/dashboard/food-bank/missions",
+        label: "Rescue missions",
+        icon: Flag,
+      },
+      {
+        href: "/dashboard/food-bank/events",
+        label: "Community events",
+        icon: CalendarRange,
+      },
       { href: "/dashboard/food-bank/rewards", label: "Rewards", icon: Coins },
     ],
   },
@@ -41,22 +71,62 @@ export const NAV: Record<Role, { title: string; home: string; items: NavItem[] }
     title: "Fridge operator",
     home: "/dashboard/operator",
     items: [
-      { href: "/dashboard/operator", label: "Overview", icon: LayoutDashboard, exact: true },
-      { href: "/dashboard/operator/monitoring", label: "Live monitoring", icon: Activity },
-      { href: "/dashboard/operator/inventory", label: "Inventory", icon: Boxes },
-      { href: "/dashboard/operator/scan", label: "Camera scan", icon: ScanLine },
+      {
+        href: "/dashboard/operator",
+        label: "Overview",
+        icon: LayoutDashboard,
+        exact: true,
+      },
+      {
+        href: "/dashboard/operator/community",
+        label: "Community map",
+        icon: MapPinned,
+      },
+      {
+        href: "/dashboard/operator/leaderboard",
+        label: "Impact leaderboard",
+        icon: Trophy,
+      },
+      {
+        href: "/dashboard/operator/monitoring",
+        label: "Live monitoring",
+        icon: Activity,
+      },
+      {
+        href: "/dashboard/operator/inventory",
+        label: "Inventory",
+        icon: Boxes,
+      },
+      {
+        href: "/dashboard/operator/scan",
+        label: "Camera scan",
+        icon: ScanLine,
+      },
       { href: "/dashboard/operator/alerts", label: "Alerts", icon: BellRing },
-      { href: "/dashboard/operator/connections", label: "Connected food banks", icon: Link2 },
+      {
+        href: "/dashboard/operator/connections",
+        label: "Connected food banks",
+        icon: Link2,
+      },
     ],
   },
   donor: {
     title: "Donor",
     home: "/dashboard/donor",
     items: [
-      { href: "/dashboard/donor", label: "Overview", icon: LayoutDashboard, exact: true },
-      { href: "/dashboard/donor/find", label: "Find a fridge", icon: Compass },
+      {
+        href: "/dashboard/donor",
+        label: "Overview",
+        icon: LayoutDashboard,
+        exact: true,
+      },
+      { href: "/dashboard/donor/find", label: "Community map", icon: Compass },
       { href: "/dashboard/donor/missions", label: "Missions", icon: Flag },
-      { href: "/dashboard/donor/leaderboard", label: "Leaderboard", icon: Trophy },
+      {
+        href: "/dashboard/donor/leaderboard",
+        label: "Impact leaderboard",
+        icon: Trophy,
+      },
       { href: "/dashboard/donor/rewards", label: "Rewards", icon: Coins },
     ],
   },

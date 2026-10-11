@@ -96,3 +96,17 @@ controlled start/stop peaked at 0.269 g at 04:47:11.895 UTC and crossed the
 expired and latest motion was 0.135 g. The threshold crossing is saved; the
 live alert was not visually observed during this test. Smooth rolling remains
 a limitation; do not advertise reliable whole-fridge theft detection.
+
+## Live anomaly indices (October 11 integration)
+
+The `/conditions` response now includes `risk`, rendered at the top of the frontend Live monitoring page. These percentages are **engineering warning indices**, not statistically calibrated probabilities of failure, food safety or theft.
+
+For a nonnegative reference deviation ratio `r`, the severity is `40r` up to `r=1`, then `40 + 55(1-exp(-(r-1)/2))`. Temperature divides warming above the recorded -17.2°C reference by the configured 2°C rise; moisture divides contact wetness above zero by 10 ADC; air divides positive response above 51 by 30 ADC. Movement removes a provisional quiet allowance of 0.15g, then divides the remainder by 0.05g. That makes the requested 0.20g motion threshold approximately a 40 index; it does not identify theft.
+
+Sustained out-of-limit temperature/moisture/air adds up to 10 index units (`min(10, 2×duration seconds)`). Temperature adds up to 15 index units from positive warming trend (`min(15, 30×°C/min)`). The slope is least squares over the last 60 seconds with at least six valid samples spanning 15 seconds and no gap greater than 15 seconds. Brief movement peaks hold for the existing ten-second movement alert window.
+
+Indices are rounded and capped at 95. Overall is the maximum channel index, so normal readings cannot dilute an abnormal channel. Missing or stale data produces an unknown overall result, not a healthy zero. Five-minute data coverage remains a distinct metric. These coefficients are provisional and need labeled trials before making any probabilistic claim. They are not inferred failure rates from the recorded data.
+
+The frontend polls every five seconds. Actual Arduino database writes remain approximately every second to retain transient sensor responses. Monitoring relative timestamps use the server evaluation time to avoid a browser clock offset.
+
+Dew point is unavailable: the contact moisture probe does not measure relative humidity. A real RH sensor would be required before applying a Magnus/Tetens calculation; reference: https://www.weather.gov/media/epz/wxcalc/wetBulbTdFromRh.pdf.

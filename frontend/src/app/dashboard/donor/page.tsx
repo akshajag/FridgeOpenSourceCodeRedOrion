@@ -1,7 +1,5 @@
-import { DonorOverview } from "@/components/donor/donor-overview";
-
-export const metadata = { title: "Overview · Donor" };
-
+import { CommunityBoard } from "@/components/community/community-board";
+export const metadata = { title: "Your neighborhood · Nourish" };
 export default function Page() {
-  return <DonorOverview />;
+  return <CommunityBoard />;
 }

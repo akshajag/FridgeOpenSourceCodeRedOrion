@@ -39,5 +39,15 @@
     "alert_trigger_raw": 81,
     "persistence_seconds": 2,
     "interpretation": "Sanitizer vapor response and alert clearance confirmed; no gas concentration, AQI, or spoilage calibration."
+  },
+  "movement_test": {
+    "status": "threshold_crossing_recorded_live_alert_not_observed",
+    "first_trial_start": "2026-10-11T04:46:25.439Z",
+    "first_trial_peak_g": 0.172,
+    "second_trial_threshold_crossing_at": "2026-10-11T04:47:11.895Z",
+    "second_trial_peak_g": 0.269,
+    "alert_threshold_g": 0.25,
+    "recovery_peak_g": 0.135,
+    "interpretation": "Controlled cart start/stop crossed the threshold in one recorded sample. Gentle roll did not. Does not establish reliable theft detection."
   }
 }

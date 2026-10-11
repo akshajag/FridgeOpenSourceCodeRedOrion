@@ -87,3 +87,10 @@ page's thermal threshold does not change these relative demo alert thresholds.
 Air vapor test confirmed: pre-test raw 41–42, peak 260, alert triggered at
 81 for two seconds, then cleared after removal with recovery raw 48.
 This verifies vapor response and alert clearance, not spoilage detection.
+
+Cart movement trials: gentle roll peaked at 0.172 g (no trigger); a quicker
+controlled start/stop peaked at 0.269 g at 04:47:11.895 UTC and crossed the
+0.25 g trigger once. By the follow-up check, the ten-second alert hold had
+expired and latest motion was 0.135 g. The threshold crossing is saved; the
+live alert was not visually observed during this test. Smooth rolling remains
+a limitation; do not advertise reliable whole-fridge theft detection.

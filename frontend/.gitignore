@@ -1,0 +1,53 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# keep the example env file even though .env* is ignored
+!.env.example
+
+# 3D assets the site ships. The team repo's root .gitignore ignores every models/ directory.
+!/public/models/
+
+# Blender sources: several .blend files exceed GitHub's 100 MB limit, so only the small
+# exports the asset pipeline needs are tracked. Keep the rest locally or share it separately.
+/blender/*
+!/blender/fridge.glb
+!/blender/camera_reference.json

@@ -1,0 +1,396 @@
+{
+  "units": "metres",
+  "blender_up": "Z",
+  "gltf_up": "Y",
+  "note": "positions given in both Blender (Z-up) and glTF/three.js (Y-up) frames",
+  "fps": 30,
+  "frame_range": [
+    1,
+    420
+  ],
+  "door_open_deg": 100.0,
+  "door_pivots": {
+    "Door_L_Pivot": {
+      "blender": [
+        -0.502,
+        -0.34,
+        0.0
+      ],
+      "gltf": [
+        -0.502,
+        0.0,
+        0.34
+      ],
+      "axis": "Z (blender) / Y (gltf)",
+      "closed_deg": 0.0,
+      "open_deg": -100.0
+    },
+    "Door_R_Pivot": {
+      "blender": [
+        0.502,
+        -0.34,
+        0.0
+      ],
+      "gltf": [
+        0.502,
+        0.0,
+        0.34
+      ],
+      "axis": "Z (blender) / Y (gltf)",
+      "closed_deg": 0.0,
+      "open_deg": 100.0
+    }
+  },
+  "hero_camera": {
+    "name": "Camera_Hero",
+    "lens_mm": 35.0,
+    "blender_loc": [
+      0.0,
+      -4.4,
+      1.05
+    ],
+    "gltf_loc": [
+      0.0,
+      1.05,
+      4.4
+    ],
+    "blender_rot_euler_deg": [
+      90.0,
+      0.0,
+      0.0
+    ],
+    "sensor_fit": "AUTO",
+    "resolution": [
+      1920,
+      1080
+    ]
+  },
+  "tour_stages": [
+    {
+      "stage": "A",
+      "name": "A_Kitchen_Overview",
+      "frame": 1,
+      "lens_mm": 35.0,
+      "hfov_deg": 54.43,
+      "blender_loc": [
+        0.0,
+        -4.4,
+        1.05
+      ],
+      "gltf_loc": [
+        0.0,
+        1.05,
+        4.4
+      ],
+      "blender_rot_euler_deg": [
+        90.0,
+        -0.0,
+        0.0
+      ],
+      "blender_quat": [
+        0.70711,
+        0.70711,
+        0.0,
+        0.0
+      ],
+      "door_angle_deg": 0.0,
+      "cover_hidden": false
+    },
+    {
+      "stage": "B",
+      "name": "B_Doors_Opening",
+      "frame": 90,
+      "lens_mm": 35.0,
+      "hfov_deg": 54.43,
+      "blender_loc": [
+        0.0,
+        -3.3,
+        1.08
+      ],
+      "gltf_loc": [
+        0.0,
+        1.08,
+        3.3
+      ],
+      "blender_rot_euler_deg": [
+        88.568,
+        -0.0,
+        0.0
+      ],
+      "blender_quat": [
+        0.71589,
+        0.69821,
+        0.0,
+        0.0
+      ],
+      "door_angle_deg": 80.2,
+      "cover_hidden": false
+    },
+    {
+      "stage": "C",
+      "name": "C_Interior_Overview",
+      "frame": 150,
+      "lens_mm": 32.0,
+      "hfov_deg": 58.72,
+      "blender_loc": [
+        0.0,
+        -1.95,
+        1.05
+      ],
+      "gltf_loc": [
+        0.0,
+        1.05,
+        1.95
+      ],
+      "blender_rot_euler_deg": [
+        87.138,
+        -0.0,
+        0.0
+      ],
+      "blender_quat": [
+        0.72455,
+        0.68923,
+        0.0,
+        0.0
+      ],
+      "door_angle_deg": 100.0,
+      "cover_hidden": false
+    },
+    {
+      "stage": "D",
+      "name": "D_Interior_Camera",
+      "frame": 210,
+      "lens_mm": 50.0,
+      "hfov_deg": 39.6,
+      "blender_loc": [
+        0.14,
+        -0.7,
+        1.41
+      ],
+      "gltf_loc": [
+        0.14,
+        1.41,
+        0.7
+      ],
+      "blender_rot_euler_deg": [
+        94.401,
+        -0.0,
+        8.606
+      ],
+      "blender_quat": [
+        0.67752,
+        0.73167,
+        0.05506,
+        0.05098
+      ],
+      "door_angle_deg": 100.0,
+      "cover_hidden": false
+    },
+    {
+      "stage": "E",
+      "name": "E_Sensors",
+      "frame": 265,
+      "lens_mm": 28.0,
+      "hfov_deg": 65.47,
+      "blender_loc": [
+        0.0,
+        -1.45,
+        1.02
+      ],
+      "gltf_loc": [
+        0.0,
+        1.02,
+        1.45
+      ],
+      "blender_rot_euler_deg": [
+        88.522,
+        -0.0,
+        0.0
+      ],
+      "blender_quat": [
+        0.71617,
+        0.69793,
+        0.0,
+        0.0
+      ],
+      "door_angle_deg": 100.0,
+      "cover_hidden": false
+    },
+    {
+      "stage": "F",
+      "name": "F_Arduino",
+      "frame": 315,
+      "lens_mm": 60.0,
+      "hfov_deg": 33.4,
+      "blender_loc": [
+        0.0,
+        -0.3,
+        2.18
+      ],
+      "gltf_loc": [
+        0.0,
+        2.18,
+        0.3
+      ],
+      "blender_rot_euler_deg": [
+        3.96,
+        -0.0,
+        0.0
+      ],
+      "blender_quat": [
+        0.9994,
+        0.03455,
+        0.0,
+        0.0
+      ],
+      "door_angle_deg": 100.0,
+      "cover_hidden": true
+    },
+    {
+      "stage": "G",
+      "name": "G_FrontCam_Speaker",
+      "frame": 370,
+      "lens_mm": 50.0,
+      "hfov_deg": 39.6,
+      "blender_loc": [
+        -0.1,
+        -1.25,
+        1.8
+      ],
+      "gltf_loc": [
+        -0.1,
+        1.8,
+        1.25
+      ],
+      "blender_rot_euler_deg": [
+        88.026,
+        -0.0,
+        1.975
+      ],
+      "blender_quat": [
+        0.71907,
+        0.69472,
+        0.01197,
+        0.01239
+      ],
+      "door_angle_deg": 100.0,
+      "cover_hidden": false
+    },
+    {
+      "stage": "H",
+      "name": "H_Final_CTA",
+      "frame": 420,
+      "lens_mm": 38.0,
+      "hfov_deg": 50.69,
+      "blender_loc": [
+        0.75,
+        -4.8,
+        1.2
+      ],
+      "gltf_loc": [
+        0.75,
+        1.2,
+        4.8
+      ],
+      "blender_rot_euler_deg": [
+        87.602,
+        -0.0,
+        10.251
+      ],
+      "blender_quat": [
+        0.71886,
+        0.68939,
+        0.06184,
+        0.06448
+      ],
+      "door_angle_deg": 100.0,
+      "cover_hidden": false
+    }
+  ],
+  "anchors": {
+    "Anchor_Camera_Front": {
+      "blender": [
+        0.0,
+        -0.56,
+        1.905
+      ],
+      "gltf": [
+        0.0,
+        1.905,
+        0.56
+      ]
+    },
+    "Anchor_Camera_Interior": {
+      "blender": [
+        0.165,
+        0.12,
+        1.455
+      ],
+      "gltf": [
+        0.165,
+        1.455,
+        -0.12
+      ]
+    },
+    "Anchor_Speaker": {
+      "blender": [
+        -0.43,
+        -0.515,
+        1.7
+      ],
+      "gltf": [
+        -0.43,
+        1.7,
+        0.515
+      ]
+    },
+    "Anchor_Arduino_Board": {
+      "blender": [
+        0.0,
+        -0.26,
+        1.8
+      ],
+      "gltf": [
+        0.0,
+        1.8,
+        0.26
+      ]
+    },
+    "Anchor_Sensor_Temperature": {
+      "blender": [
+        -0.33,
+        -0.04,
+        1.422
+      ],
+      "gltf": [
+        -0.33,
+        1.422,
+        0.04
+      ]
+    },
+    "Anchor_Sensor_AirQuality": {
+      "blender": [
+        0.33,
+        -0.04,
+        1.422
+      ],
+      "gltf": [
+        0.33,
+        1.422,
+        0.04
+      ]
+    },
+    "Anchor_Sensor_Moisture": {
+      "blender": [
+        -0.035,
+        0.14,
+        0.585
+      ],
+      "gltf": [
+        -0.035,
+        0.585,
+        -0.14
+      ]
+    }
+  }
+}

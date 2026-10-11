@@ -1,0 +1,12 @@
+elevenlabs>=2.71.0
+sounddevice>=0.5
+numpy>=2.0
+python-dotenv>=1.0
+opencv-python>=4.10
+pillow>=11.0
+rapidocr>=3.10
+onnxruntime>=1.20
+zxing-cpp>=3.0
+ddgs>=9.0
+truststore>=0.9
+google-genai>=2.29

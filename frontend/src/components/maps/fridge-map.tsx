@@ -9,6 +9,7 @@ import {
   Map as MapLibreMap,
   Marker,
   NavigationControl,
+  FullscreenControl,
   setWorkerUrl,
   type GeoJSONSource,
   type ErrorEvent,
@@ -34,6 +35,7 @@ export interface FridgeMapProps {
   className?: string;
   onTileError?: () => void;
   territories?: GeoJSON.FeatureCollection;
+  fitAllTrigger?: number;
   /** Fridges whose precise location is hidden get a wider, softer marker. */
   approximateIds?: string[];
 }
@@ -81,12 +83,14 @@ export function FridgeMap({
   className,
   onTileError,
   territories,
+  fitAllTrigger,
   approximateIds = [],
 }: FridgeMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Map<string, Marker>>(new Map());
   const onSelectRef = useRef(onSelect);
+  const lastSelection = useRef<string | null>(null);
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
@@ -104,10 +108,23 @@ export function FridgeMap({
       attributionControl: { compact: true },
     });
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
+    map.addControl(new FullscreenControl(), "top-right");
     map.on("error", (e: ErrorEvent) => {
       const status = (e as { error?: { status?: number } }).error?.status;
       if (status && status >= 400) onTileError?.();
     });
+    if (territories && fridges.length) {
+      const lngs = fridges.map((f) => f.location.lng),
+        lats = fridges.map((f) => f.location.lat);
+      map.fitBounds(
+        [
+          [Math.min(...lngs) - 0.008, Math.min(...lats) - 0.008],
+          [Math.max(...lngs) + 0.008, Math.max(...lats) + 0.008],
+        ],
+        { padding: 30, duration: 0 },
+      );
+      lastSelection.current = selectedId ?? null;
+    }
     mapRef.current = map;
     const markers = markersRef.current;
     return () => {
@@ -130,13 +147,47 @@ export function FridgeMap({
           id: "territories-fill",
           type: "fill",
           source: "territories",
-          paint: { "fill-color": ["get", "color"], "fill-opacity": 0.28 },
+          filter: ["==", ["get", "kind"], "cell"],
+          paint: {
+            "fill-color": ["get", "color"],
+            "fill-opacity": 0.35,
+            "fill-opacity-transition": { duration: 650 },
+          },
+        });
+        map.addLayer({
+          id: "territories-grid",
+          type: "line",
+          source: "territories",
+          filter: ["==", ["get", "kind"], "cell"],
+          paint: {
+            "line-color": "#ffffff",
+            "line-width": 0.5,
+            "line-opacity": 0.35,
+          },
         });
         map.addLayer({
           id: "territories-border",
           type: "line",
           source: "territories",
-          paint: { "line-color": ["get", "color"], "line-width": 2 },
+          filter: ["==", ["get", "kind"], "edge"],
+          paint: { "line-color": ["get", "color"], "line-width": 3 },
+        });
+        map.addLayer({
+          id: "territories-label",
+          type: "symbol",
+          source: "territories",
+          filter: ["==", ["get", "kind"], "label"],
+          layout: {
+            "text-field": ["get", "name"],
+            "text-size": 13,
+            "text-font": ["Noto Sans Regular"],
+            "text-allow-overlap": false,
+          },
+          paint: {
+            "text-color": ["get", "color"],
+            "text-halo-color": "#ffffff",
+            "text-halo-width": 2,
+          },
         });
       }
     };
@@ -177,7 +228,8 @@ export function FridgeMap({
   // Fly to selection.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !selectedId) return;
+    if (!map || !selectedId || lastSelection.current === selectedId) return;
+    lastSelection.current = selectedId;
     const f = fridges.find((x) => x.id === selectedId);
     if (f)
       map.easeTo({
@@ -186,6 +238,21 @@ export function FridgeMap({
         duration: 600,
       });
   }, [selectedId, fridges]);
+
+  useEffect(() => {
+    if (!mapRef.current || !fitAllTrigger || !fridges.length) return;
+    const lngs = fridges.map((f) => f.location.lng),
+      lats = fridges.map((f) => f.location.lat);
+    mapRef.current.fitBounds(
+      [
+        [Math.min(...lngs) - 0.008, Math.min(...lats) - 0.008],
+        [Math.max(...lngs) + 0.008, Math.max(...lats) + 0.008],
+      ],
+      { padding: 30, duration: 500 },
+    );
+    // A reset is user-triggered, never tied to the five-second data refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitAllTrigger]);
 
   // Search radius circle.
   useEffect(() => {

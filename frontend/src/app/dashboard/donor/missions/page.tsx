@@ -1,7 +1,5 @@
-import { DonorMissions } from "@/components/donor/donor-missions";
-
-export const metadata = { title: "Missions · Donor" };
-
+import { CommunityHub } from "@/components/community/community-hub";
+export const metadata = { title: "Missions · Nourish" };
 export default function Page() {
-  return <DonorMissions />;
+  return <CommunityHub view="missions" />;
 }

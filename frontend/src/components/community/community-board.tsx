@@ -9,12 +9,17 @@ import {
   PackagePlus,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Panel, PanelHeader, PanelBody } from "@/components/shared/panel";
 import { Button } from "@/components/ui/button";
 import { FridgeMap } from "@/components/maps/fridge-map";
-import { owner, standings, type CommunityWorld } from "@/lib/community/model";
+import {
+  owner,
+  standings,
+  territoryGeoJSON,
+  type CommunityWorld,
+} from "@/lib/community/model";
 import type { Fridge } from "@/types";
 import { toast } from "sonner";
 
@@ -38,10 +43,12 @@ export function CommunityBoard({
     queryFn: loadWorld,
     refetchInterval: 5000,
   });
-  const [selected, setSelected] = useState("houston-1");
+  const [selected, setSelected] = useState("");
   const [crew, setCrew] = useState("nourish");
   const [units, setUnits] = useState(8);
   const [needsOnly, setNeedsOnly] = useState(false);
+  const [fitAll, setFitAll] = useState(0);
+  const [showTerritory, setShowTerritory] = useState(true);
   const pathname = usePathname();
   const base = pathname.startsWith("/dashboard/operator")
     ? "/dashboard/operator"
@@ -55,7 +62,7 @@ export function CommunityBoard({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           id: crypto.randomUUID(),
-          fridgeId: selected,
+          fridgeId: selected || params.get("fridge") || "houston-1",
           crewId: crew,
           units,
         }),
@@ -68,37 +75,18 @@ export function CommunityBoard({
       queryClient.setQueryData(["community-demo"], next);
       toast.success("Demo refill recorded", {
         description:
-          "Stock, territory ownership, and the leaderboard updated together.",
+          "Stock, mission progress, connected map cells, and the leaderboard updated together.",
       });
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  const territories = useMemo<GeoJSON.FeatureCollection>(
-    () => ({
-      type: "FeatureCollection",
-      features: (world?.fridges ?? []).map((f) => {
-        const color =
-          world?.crews.find((c) => c.id === owner(f))?.color ?? "#abb4af";
-        return {
-          type: "Feature",
-          properties: { color },
-          geometry: {
-            type: "Polygon",
-            coordinates: [
-              [
-                [f.lng - 0.007, f.lat - 0.006],
-                [f.lng + 0.007, f.lat - 0.006],
-                [f.lng + 0.007, f.lat + 0.006],
-                [f.lng - 0.007, f.lat + 0.006],
-                [f.lng - 0.007, f.lat - 0.006],
-              ],
-            ],
-          },
-        };
-      }),
-    }),
+  const territories = useMemo(
+    () => (world ? territoryGeoJSON(world) : undefined),
     [world],
   );
+  const params = useSearchParams();
+  const initialFridge = params.get("fridge");
+  const activeSelected = selected || initialFridge || "houston-1";
   if (isLoading)
     return (
       <p className="py-16 text-muted-foreground" role="status">
@@ -117,7 +105,7 @@ export function CommunityBoard({
     );
   const ranks = standings(world);
   const fridge =
-    world.fridges.find((f) => f.id === selected) ?? world.fridges[0];
+    world.fridges.find((f) => f.id === activeSelected) ?? world.fridges[0];
   const held = world.crews.find((c) => c.id === owner(fridge));
   const deficit = fridge.capacity - fridge.stock;
   const shown = world.fridges.filter(
@@ -157,11 +145,7 @@ export function CommunityBoard({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={
-          leaderboardOnly
-            ? "Community leaderboard"
-            : "Nourish your neighborhood"
-        }
+        title={leaderboardOnly ? "Community leaderboard" : "Community map"}
         description={
           leaderboardOnly
             ? "Local impact, measured in food supplied and fridges helped."
@@ -169,15 +153,16 @@ export function CommunityBoard({
         }
         meta={
           <span className="rounded-md border border-amber/40 bg-amber-soft px-2 py-1 text-xs text-amber">
-            Interactive demo · mock locations & refills
+            CodeRED: Orion · simulated community
           </span>
         }
       />
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sage-deep/60 bg-sage/40 px-5 py-4">
         <p className="max-w-2xl text-sm">
-          Each neighborhood is held by the crew that supplied the most food this
-          demo week. Anyone can help any fridge—territory never limits access to
-          food.
+          Paper.io-inspired impact game: each crew starts at a home base. Every
+          food unit supplied earns three connected map cells; crews compete for
+          open space. These are symbolic support zones. Food stays available to
+          everyone.
         </p>
         <Button asChild variant="outline">
           <Link
@@ -227,25 +212,47 @@ export function CommunityBoard({
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
           <Panel className="overflow-hidden">
             <PanelHeader
-              title="Houston · community territories"
-              description="Colored areas show each crew’s local contribution."
+              title="Houston · refill the city"
+              description="Real streets + connected crew territory. Select a fridge to supply food and expand your crew’s frontier."
               action={
-                <label className="flex items-center gap-2 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={needsOnly}
-                    onChange={(e) => setNeedsOnly(e.target.checked)}
-                  />
-                  Needs refilling
-                </label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFitAll((n) => n + 1)}
+                  >
+                    Show all fridges
+                  </Button>
+                  <label className="flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={showTerritory}
+                      onChange={(e) => setShowTerritory(e.target.checked)}
+                    />
+                    Territories
+                  </label>
+                  <label className="flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={needsOnly}
+                      onChange={(e) => setNeedsOnly(e.target.checked)}
+                    />
+                    Needs refilling
+                  </label>
+                </div>
               }
             />
-            <div className="h-[460px] px-3 pb-3">
+            <div className="h-[560px] px-3 pb-3">
               <FridgeMap
                 fridges={mapped}
-                selectedId={selected}
+                selectedId={activeSelected}
                 onSelect={setSelected}
-                territories={territories}
+                territories={
+                  showTerritory
+                    ? territories
+                    : { type: "FeatureCollection", features: [] }
+                }
+                fitAllTrigger={fitAll}
                 center={{ lat: 29.75, lng: -95.366 }}
               />
             </div>
@@ -256,11 +263,20 @@ export function CommunityBoard({
                     className="size-2.5 rounded-sm"
                     style={{ background: c.color }}
                   />
-                  {c.name}
+                  {c.name} · {ranks.find((r) => r.id === c.id)?.territories}{" "}
+                  cells
                 </span>
               ))}
-              <span className="text-muted-foreground">Gray = unclaimed</span>
+              <span className="text-muted-foreground">
+                Amber markers need food · green markers stocked
+              </span>
             </div>
+            <p className="border-t px-5 py-3 text-xs leading-relaxed text-muted-foreground">
+              Home bases: Orion Builders / Midtown; Cougar Collective / Third
+              Ward; MLH Community Crew / East End; Team Nourish / University.
+              Refill any fridge for your crew to expand from its home base.
+              Uncolored cells are open; crews never overlap.
+            </p>
           </Panel>
           <Panel>
             <PanelHeader
@@ -298,7 +314,7 @@ export function CommunityBoard({
               </div>
               <div className="text-sm">
                 <p className="text-xs text-muted-foreground">
-                  Neighborhood held by
+                  Leading contributor at this fridge
                 </p>
                 <p className="mt-1 font-medium" style={{ color: held?.color }}>
                   {held?.name ?? "Unclaimed · be the first to help"}
@@ -369,7 +385,7 @@ export function CommunityBoard({
                   key={f.id}
                   type="button"
                   onClick={() => setSelected(f.id)}
-                  className={`rounded-lg border p-3 text-left transition-colors hover:bg-sage/40 ${f.id === selected ? "border-evergreen bg-sage/30" : "border-border"}`}
+                  className={`rounded-lg border p-3 text-left transition-colors hover:bg-sage/40 ${f.id === activeSelected ? "border-evergreen bg-sage/30" : "border-border"}`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-medium">
@@ -403,7 +419,7 @@ export function CommunityBoard({
                   <th className="pb-3">Rank / crew</th>
                   <th className="pb-3 text-right">Food supplied</th>
                   <th className="pb-3 text-right">Fridges helped</th>
-                  <th className="pb-3 text-right">Territories held</th>
+                  <th className="pb-3 text-right">Map cells</th>
                 </tr>
               </thead>
               <tbody>

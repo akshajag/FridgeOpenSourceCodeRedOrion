@@ -16,10 +16,14 @@ export type Refill = {
   crewId: string;
   units: number;
   actor: string;
+  actorId?: string;
   at: string;
 };
 export type CommunityWorld = {
   demo: true;
+  version?: number;
+  memberships?: Record<string, string[]>;
+  viewer?: { id: string; name: string; joined: string[] } | null;
   crews: Crew[];
   fridges: CommunityFridge[];
   refills: Refill[];
@@ -27,9 +31,9 @@ export type CommunityWorld = {
 };
 export function seedWorld(): CommunityWorld {
   const crews = [
-    { id: "bayou", name: "Bayou Builders", color: "#397c69" },
+    { id: "bayou", name: "Orion Builders", color: "#397c69" },
     { id: "cougars", name: "Cougar Collective", color: "#9670b2" },
-    { id: "east", name: "East End Neighbors", color: "#da975b" },
+    { id: "east", name: "MLH Community Crew", color: "#da975b" },
     { id: "nourish", name: "Team Nourish", color: "#4c8fb9" },
   ];
   const sites = [
@@ -65,8 +69,10 @@ export function seedWorld(): CommunityWorld {
     ["Northside", "Fulton Food Share", 29.786, -95.363, "Fresh fruit"],
   ] as const;
   const stocks = [4, 12, 22, 8, 30, 5, 14, 2, 27, 9, 18, 6];
-  return {
+  const world: CommunityWorld = {
     demo: true,
+    version: 2,
+    memberships: {},
     crews,
     refills: [],
     updatedAt: new Date().toISOString(),
@@ -85,6 +91,25 @@ export function seedWorld(): CommunityWorld {
           : { [crews[i % 4].id]: 6 + (i % 5), [crews[(i + 1) % 4].id]: 2 },
     })),
   };
+  const names = [
+    "Orion volunteer Maya",
+    "CodeRED participant Alex",
+    "MLH community volunteer Sam",
+    "Nourish volunteer Jordan",
+  ];
+  world.refills = world.fridges
+    .flatMap((f, i) =>
+      Object.entries(f.supplied).map(([crewId, units], j) => ({
+        id: `seed-${f.id}-${crewId}`,
+        fridgeId: f.id,
+        crewId,
+        units,
+        actor: names[(i + j) % names.length],
+        at: new Date(Date.UTC(2026, 9, 11, 9, i * 3 + j)).toISOString(),
+      })),
+    )
+    .reverse();
+  return world;
 }
 export function owner(fridge: CommunityFridge): string | null {
   const sorted = Object.entries(fridge.supplied).sort(
@@ -93,13 +118,14 @@ export function owner(fridge: CommunityFridge): string | null {
   return sorted.length && sorted[0][1] > 0 ? sorted[0][0] : null;
 }
 export function standings(world: CommunityWorld) {
+  const cells = territoryCells(world);
   return world.crews
     .map((crew) => ({
       ...crew,
       units: world.fridges.reduce((n, f) => n + (f.supplied[crew.id] ?? 0), 0),
       helped: world.fridges.filter((f) => (f.supplied[crew.id] ?? 0) > 0)
         .length,
-      territories: world.fridges.filter((f) => owner(f) === crew.id).length,
+      territories: cells.filter((c) => c.crewId === crew.id).length,
     }))
     .sort(
       (a, b) =>
@@ -132,5 +158,160 @@ export function refill(world: CommunityWorld, event: Refill): CommunityWorld {
         : f,
     ),
     refills: [event, ...world.refills].slice(0, 500),
+  };
+}
+
+// A bounded square lattice: each crew expands only through its own connected frontier.
+// Cells are a visual game footprint, not land ownership or food access rights.
+export type TerritoryCell = {
+  x: number;
+  y: number;
+  crewId: string;
+  lng: number;
+  lat: number;
+  size: number;
+};
+export function territoryCells(world: CommunityWorld): TerritoryCell[] {
+  const size = 0.0025;
+  const west = -95.435,
+    south = 29.7,
+    cols = 52,
+    rows = 44;
+  const anchors = ["houston-4", "houston-1", "houston-2", "houston-7"];
+  const used = new Set<string>();
+  const queues = world.crews.map((crew, i) => {
+    const f =
+      world.fridges.find((f) => f.id === anchors[i]) ?? world.fridges[i];
+    const x = Math.max(
+      0,
+      Math.min(cols - 1, Math.floor((f.lng - west) / size)),
+    );
+    const y = Math.max(
+      0,
+      Math.min(rows - 1, Math.floor((f.lat - south) / size)),
+    );
+    const budget =
+      12 +
+      world.fridges.reduce((n, f) => n + (f.supplied[crew.id] ?? 0), 0) * 3;
+    return {
+      crewId: crew.id,
+      frontier: [[x, y]] as number[][],
+      head: 0,
+      count: 0,
+      budget,
+    };
+  });
+  const cells: TerritoryCell[] = [];
+  let growing = true;
+  while (growing) {
+    growing = false;
+    for (const q of queues) {
+      if (q.count >= q.budget) continue;
+      while (q.head < q.frontier.length) {
+        const [x, y] = q.frontier[q.head++];
+        const key = `${x}:${y}`;
+        if (used.has(key) || x < 0 || y < 0 || x >= cols || y >= rows) continue;
+        used.add(key);
+        cells.push({
+          x,
+          y,
+          crewId: q.crewId,
+          lng: west + x * size,
+          lat: south + y * size,
+          size,
+        });
+        q.count++;
+        q.frontier.push([x + 1, y], [x, y + 1], [x - 1, y], [x, y - 1]);
+        growing = true;
+        break;
+      }
+    }
+  }
+  return cells;
+}
+export function territoryGeoJSON(
+  world: CommunityWorld,
+): GeoJSON.FeatureCollection {
+  const cells = territoryCells(world);
+  const byKey = new Map(cells.map((c) => [`${c.x}:${c.y}`, c.crewId]));
+  const features: GeoJSON.Feature[] = [];
+  for (const c of cells) {
+    const color = world.crews.find((crew) => crew.id === c.crewId)!.color;
+    const x = c.lng,
+      y = c.lat,
+      d = c.size;
+    const ring = [
+      [x, y],
+      [x + d, y],
+      [x + d, y + d],
+      [x, y + d],
+      [x, y],
+    ];
+    features.push({
+      type: "Feature",
+      properties: { kind: "cell", color, crewId: c.crewId },
+      geometry: { type: "Polygon", coordinates: [ring] },
+    });
+    const sides = [
+      [c.x, c.y - 1, ring[0], ring[1]],
+      [c.x + 1, c.y, ring[1], ring[2]],
+      [c.x, c.y + 1, ring[2], ring[3]],
+      [c.x - 1, c.y, ring[3], ring[0]],
+    ] as const;
+    for (const [nx, ny, a, b] of sides)
+      if (byKey.get(`${nx}:${ny}`) !== c.crewId)
+        features.push({
+          type: "Feature",
+          properties: { kind: "edge", color },
+          geometry: { type: "LineString", coordinates: [a, b] },
+        });
+  }
+  for (const crew of world.crews) {
+    const held = cells.filter((c) => c.crewId === crew.id);
+    if (!held.length) continue;
+    features.push({
+      type: "Feature",
+      properties: { kind: "label", color: crew.color, name: crew.name },
+      geometry: {
+        type: "Point",
+        coordinates: [
+          held.reduce((n, c) => n + c.lng + c.size / 2, 0) / held.length,
+          held.reduce((n, c) => n + c.lat + c.size / 2, 0) / held.length,
+        ],
+      },
+    });
+  }
+  return { type: "FeatureCollection", features };
+}
+export function missions(world: CommunityWorld) {
+  return world.fridges
+    .filter((f) => f.stock < 32)
+    .map((f) => ({
+      id: f.id,
+      title: `Refill ${f.neighborhood}`,
+      fridge: f,
+      target: 32,
+      remaining: 32 - f.stock,
+      urgency: f.stock < 8 ? "Urgent" : f.stock < 16 ? "Priority" : "Open",
+      progress: Math.round((f.stock / 32) * 100),
+    }));
+}
+export function setMission(
+  world: CommunityWorld,
+  userId: string,
+  fridgeId: string,
+  join: boolean,
+): CommunityWorld {
+  if (!world.fridges.some((f) => f.id === fridgeId))
+    throw new Error("Unknown mission.");
+  const current = world.memberships?.[userId] ?? [];
+  return {
+    ...world,
+    memberships: {
+      ...world.memberships,
+      [userId]: join
+        ? [...new Set([...current, fridgeId])]
+        : current.filter((id) => id !== fridgeId),
+    },
   };
 }

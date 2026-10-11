@@ -1,5 +1,5 @@
-import { CommunityBoard } from "@/components/community/community-board";
-export const metadata = { title: "Your neighborhood · Nourish" };
+import { CommunityHub } from "@/components/community/community-hub";
+export const metadata = { title: "Overview · Nourish" };
 export default function Page() {
-  return <CommunityBoard />;
+  return <CommunityHub view="overview" />;
 }

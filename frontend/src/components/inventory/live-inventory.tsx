@@ -74,6 +74,10 @@ export function LiveInventory() {
     refetchInterval: 5000,
   });
   const latest = data?.checks[0];
+  const shelf = data?.checks.find((c) => c.at === data.analyzedAt);
+  const observed = (shelf?.observed ?? []).filter((i) =>
+    i.count > 0 && i.name.toLowerCase().includes(search.toLowerCase()),
+  );
   const visible =
     data?.items.filter((i) =>
       `${i.name} ${i.brand ?? ""} ${i.category}`
@@ -87,10 +91,10 @@ export function LiveInventory() {
     <div className="space-y-6">
       <PageHeader
         title="Inside the fridge"
-        description="A live shelf of donated food, backed by Tiger Data."
+        description="What the back camera sees on the shelves, stored in Tiger Data."
         meta={
           <span className="rounded-md border border-evergreen/30 bg-sage px-2 py-1 text-xs text-evergreen">
-            Live inventory · refreshes every 5 seconds
+            Shelf results · refreshes every 5 seconds
           </span>
         }
         actions={
@@ -130,7 +134,7 @@ export function LiveInventory() {
           <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border bg-sage/30 p-5">
             <div>
               <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Community fridge
+                Managed food-bank fridge
               </p>
               <select
                 aria-label="Choose fridge"
@@ -212,6 +216,30 @@ export function LiveInventory() {
               className="h-11 w-full rounded-lg border bg-card px-4 text-sm"
             />
           </div>
+          <Panel tone="sage">
+            <PanelHeader
+              title="Seen by the back camera"
+              description={shelf ? `Latest successful shelf scan: ${when(shelf.at)}. Camera scans run every five minutes; this page checks for new results every five seconds.` : "Waiting for a successful back-camera shelf scan."}
+            />
+            <PanelBody className="pb-5">
+              {observed.length ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {observed.map((item, index) => (
+                    <div key={`${item.name}-${index}`} className="flex items-center gap-3 rounded-lg border bg-card p-4">
+                      <Camera className="size-5 shrink-0 text-evergreen" />
+                      <div><p className="text-sm font-medium">{item.name}</p><p className="mt-1 text-xs text-muted-foreground">{item.count} visible {item.count === 1 ? "item" : "items"}</p></div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">{search ? "No camera-observed items match your search." : shelf ? "No food was visible in this shelf scan. Hidden items may be missed." : "Keep the Logitech camera pointed inside and the camera app running. Use Check shelf now in the camera app for an immediate scan."}</p>
+              )}
+              {latest && shelf && latest.id !== shelf.id && (
+                <p role="status" className="mt-3 text-xs text-amber">The newest check was not analyzed successfully. These are the last successful observations, not a current shelf confirmation.</p>
+              )}
+            </PanelBody>
+          </Panel>
+          <h2 className="font-display text-lg font-semibold">Confirmed donation records</h2>
           {visible.length ? (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {visible.map((item) => (

@@ -42,8 +42,7 @@ log = logging.getLogger("fridge.inventory")
 AUDIT_INTERVAL_S = 30.0
 AUDIT_DIR = Path(__file__).with_name("audits")
 LEDGER_PATH = Path(__file__).with_name("inventory_ledger.json")
-# Recheck at the configured interval even if the image is unchanged.
-# Manual checks within that interval can reuse the last observation.
+# Every scheduled or manual check analyzes a fresh camera image.
 CHANGED_PIXEL_FRACTION = 0.03
 MIN_BRIGHTNESS = 18.0  # mean grey level below which the picture is "too dark to tell"
 CAMERA_WARMUP_S = 2.5  # webcams send black / badly exposed frames at first

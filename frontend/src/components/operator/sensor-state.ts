@@ -2,7 +2,7 @@ import type { AlertType, FridgeCapabilities, FridgeThresholds, InventoryEvent, S
 
 export type SensorState = "ok" | "warning" | "critical" | "stale";
 
-export const METRICS: SensorMetric[] = ["temperature", "humidity", "air_quality"];
+export const METRICS: SensorMetric[] = ["temperature", "humidity", "air_quality", "moisture", "movement"];
 
 /** Readings older than this are treated as stale rather than current. */
 export const STALE_MS = 20_000;
@@ -11,25 +11,35 @@ export const METRIC_LABEL: Record<SensorMetric, string> = {
   temperature: "Temperature",
   humidity: "Humidity",
   air_quality: "Air sensor response",
+  moisture: "Contact moisture",
+  movement: "Movement (accelerometer)",
 };
 
-export const METRIC_UNIT: Record<SensorMetric, "°C" | "%" | "ppm" | "raw"> = {
+export const METRIC_UNIT: Record<SensorMetric, "°C" | "%" | "ppm" | "raw" | "g"> = {
   temperature: "°C",
   humidity: "%",
   air_quality: "raw",
+  moisture: "raw",
+  movement: "g",
 };
 
 export const METRIC_DECIMALS: Record<SensorMetric, number> = {
   temperature: 1,
   humidity: 0,
   air_quality: 0,
+  moisture: 0,
+  movement: 3,
 };
 
 export function metricSupported(metric: SensorMetric, caps: FridgeCapabilities): boolean {
+  if (metric === "moisture") return Boolean(caps.moisture);
+  if (metric === "movement") return Boolean(caps.movement);
   return metric === "temperature" ? caps.temperature : metric === "humidity" ? caps.humidity : caps.airQuality;
 }
 
 export function bandFor(metric: SensorMetric, th: FridgeThresholds): { min?: number; max?: number } {
+  if (metric === "moisture") return th.moistureMaxRaw !== undefined ? { min: 0, max: th.moistureMaxRaw } : {};
+  if (metric === "movement") return th.movementMaxG !== undefined ? { min: 0, max: th.movementMaxG } : {};
   if (metric === "temperature") return { min: th.tempMinC, max: th.tempMaxC };
   if (metric === "humidity") return th.humidityMaxPct !== undefined ? { max: th.humidityMaxPct } : {};
   return th.airQualityMaxPpm !== undefined ? { max: th.airQualityMaxPpm } : {};
@@ -56,6 +66,8 @@ export function sensorState(metric: SensorMetric, latest: SensorReading | undefi
     if (th.humidityMaxPct !== undefined && v > th.humidityMaxPct) return "warning";
     return "ok";
   }
+  if (metric === "moisture") return th.moistureMaxRaw !== undefined && v >= th.moistureMaxRaw ? "warning" : "ok";
+  if (metric === "movement") return th.movementMaxG !== undefined && v > th.movementMaxG ? "warning" : "ok";
   if (th.airQualityMaxPpm !== undefined) {
     if (v > th.airQualityMaxPpm * 1.5) return "critical";
     if (v > th.airQualityMaxPpm) return "warning";

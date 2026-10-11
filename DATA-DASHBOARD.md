@@ -14,7 +14,7 @@ For another device on the same Wi-Fi, replace localhost with the sensor Mac IP. 
 ## Data flow
 Arduino USB → serial-bridge.js → Tiger PostgreSQL sensor hypertable → private localhost:3200 API → server-side Next.js adapter → original dashboard (refreshes every 2 seconds).
 
-The adapter reads real temperature, raw air response, contact wetness, acceleration peak, alert conditions, inventory balance, donation proposals and inventory history. Charts merge recent exact readings with five-minute averages over seven days. Older averages are trend data, not raw samples. Nothing clears or rewrites recorded sensor data.
+The adapter reads real temperature, raw air response, contact wetness, acceleration peak, alert conditions, inventory balance, donation proposals and inventory history. Charts merge recent exact readings with five-minute temperature/air averages and moisture/movement maxima over seven days, preserving brief wetness and motion peaks. Older averages are trend data, not raw samples. Nothing clears or rewrites recorded sensor data.
 
 Missing expiry stays unknown. The category defaults to Pantry when not supplied; it is not an AI classification. Location is approximate CodeRED venue metadata, not GPS. Camera/voice connection status is unavailable on this sensor device. Contact wetness is not relative humidity; air response is not ppm. Coverage is data availability, not food-safety probability. Inventory balances may aggregate donations with different expiry dates; a displayed expiry is the latest recorded donation metadata, not a guarantee for all units.
 

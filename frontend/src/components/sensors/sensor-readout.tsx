@@ -1,6 +1,6 @@
 "use client";
 
-import { Thermometer, Droplets, Wind } from "lucide-react";
+import { Thermometer, Droplets, Wind, Activity } from "lucide-react";
 import type { SensorMetric, SensorReading } from "@/types";
 import { formatRelative } from "@/lib/data/derived";
 import { Sparkline } from "./sensor-chart";
@@ -10,6 +10,8 @@ const META: Record<SensorMetric, { label: string; icon: React.ComponentType<{ cl
   temperature: { label: "Temperature", icon: Thermometer, decimals: 1 },
   humidity: { label: "Humidity", icon: Droplets, decimals: 0 },
   air_quality: { label: "Air sensor response", icon: Wind, decimals: 0 },
+  moisture: { label: "Contact moisture", icon: Droplets, decimals: 0 },
+  movement: { label: "Movement (accelerometer)", icon: Activity, decimals: 3 },
 };
 
 /**

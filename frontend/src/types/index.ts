@@ -51,6 +51,8 @@ export interface FridgeCapabilities {
   temperature: boolean;
   humidity: boolean;
   airQuality: boolean;
+  moisture?: boolean;
+  movement?: boolean;
   frontCamera: boolean;
   interiorCamera: boolean;
   voiceAssistant: boolean;
@@ -61,6 +63,8 @@ export interface FridgeThresholds {
   tempMaxC: number;
   humidityMaxPct?: number;
   airQualityMaxPpm?: number;
+  moistureMaxRaw?: number;
+  movementMaxG?: number;
 }
 
 export interface Fridge {
@@ -138,14 +142,14 @@ export interface InventoryEvent {
   at: ISODate;
 }
 
-export type SensorMetric = "temperature" | "humidity" | "air_quality";
+export type SensorMetric = "temperature" | "humidity" | "air_quality" | "moisture" | "movement";
 
 export interface SensorReading {
   id: string;
   fridgeId: string;
   metric: SensorMetric;
   value: number;
-  unit: "°C" | "%" | "ppm" | "raw";
+  unit: "°C" | "%" | "ppm" | "raw" | "g";
   source: "hardware" | "demo";
   at: ISODate;
 }

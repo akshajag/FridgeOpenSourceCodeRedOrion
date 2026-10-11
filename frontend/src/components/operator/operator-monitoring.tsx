@@ -66,9 +66,10 @@ function MonitoringContent() {
         <div className="space-y-4">
           <MetricPanel metric="temperature" data={data} fridge={fridge} rangeMs={rangeMs} now={now} height={280} />
           <div className="grid gap-4 xl:grid-cols-2">
-            <MetricPanel metric="humidity" data={data} fridge={fridge} rangeMs={rangeMs} now={now} height={200} />
+            <MetricPanel metric={fridge.capabilities.moisture ? "moisture" : "humidity"} data={data} fridge={fridge} rangeMs={rangeMs} now={now} height={200} />
             <MetricPanel metric="air_quality" data={data} fridge={fridge} rangeMs={rangeMs} now={now} height={200} />
           </div>
+          {fridge.capabilities.movement && <MetricPanel metric="movement" data={data} fridge={fridge} rangeMs={rangeMs} now={now} height={240} />}
         </div>
 
         <div className="space-y-4">
@@ -95,13 +96,14 @@ function MetricPanel({ metric, data, fridge, rangeMs, now, height }: { metric: S
   const band = bandFor(metric, fridge.thresholds);
   const stats = summarize(readings);
   const tone = state === "critical" ? "text-critical" : state === "warning" ? "text-amber" : state === "stale" ? "text-ink-faint" : "text-sensor";
+  const measurementNote = metric === "moisture" ? "Contact wetness · alert at or above threshold · older buckets show maximum" : metric === "movement" ? "Acceleration change peak · alert above threshold · older buckets show maximum peak" : undefined;
   const bandText = band.min !== undefined && band.max !== undefined ? `Band ${band.min}–${band.max} ${unit}` : band.max !== undefined ? `Max ${band.max.toLocaleString()} ${unit}` : "No threshold set";
 
   return (
     <Panel tone="sensor">
       <PanelHeader
         title={METRIC_LABEL[metric]}
-        description={bandText}
+        description={measurementNote ? `${bandText} · ${measurementNote}` : bandText}
         action={
           <div className="text-right">
             <div className={cn("readout flex items-baseline justify-end gap-1 leading-none", tone)}>
@@ -146,8 +148,6 @@ function ConnectionPanel({ fridge, now, conditions }: { fridge: Fridge; now: num
       <PanelBody>
         <dl className="space-y-2.5 text-[13px]">
           {conditions && <>
-            <div className="flex justify-between"><dt className="text-muted-foreground">Contact moisture</dt><dd>{conditions.moisture ?? "—"} raw · alert at {conditions.moistureThreshold}</dd></div>
-            <div className="flex justify-between"><dt className="text-muted-foreground">Movement peak</dt><dd>{conditions.movement?.toFixed(3) ?? "—"} g · alert above {conditions.movementThreshold} g</dd></div>
             <div className="flex justify-between"><dt className="text-muted-foreground">Data coverage · last 5 min</dt><dd>{conditions.confidence.toFixed(1)}%</dd></div>
           </>}
           <div className="flex items-center justify-between gap-3">

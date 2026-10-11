@@ -1,0 +1,18 @@
+{
+  "fridge_id": "orion-fridge-01",
+  "device_id": "arduino-uno-r4",
+  "baseline_start": "2026-10-11T03:47:00.000Z",
+  "baseline_end": "2026-10-11T03:50:00.000Z",
+  "sample_count": 174,
+  "status": "provisional_pre_demo_reference",
+  "temperature_c": -17.2,
+  "moisture_raw": 0,
+  "air_quality_raw": 51,
+  "thresholds": {
+    "temperature_rise_c": 2,
+    "moisture_increase_raw": 10,
+    "air_increase_raw": 30,
+    "motion_peak_g": 0.25
+  },
+  "note": "Temperature range -17.30 to -16.94 C; air range 50 to 51; moisture 0. Quiet motion peak reached 0.208 g. Demo thresholds require physical validation; not food safety limits."
+}

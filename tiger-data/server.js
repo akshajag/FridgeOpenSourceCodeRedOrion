@@ -5,6 +5,8 @@ import {makePool} from './db.js';
 import {fileURLToPath} from 'node:url';
 import {getThermalMetrics} from './thermal-query.js';
 import {existsSync,readFileSync} from 'node:fs';
+import {conditionMetrics} from './conditions.js';
+const conditionBaseline=JSON.parse(readFileSync(new URL('./condition-baseline.json',import.meta.url),'utf8'));
 const pool=makePool(), app=express();
 // Automatic localhost dashboard sessions can read thermal metrics only.
 // They never grant the browser the backend token or permission to write data.
@@ -25,7 +27,7 @@ app.get('/monitor',(req,res)=>{
 app.get('/monitor.js',(_req,res)=>res.sendFile(fileURLToPath(new URL('./public/monitor.js',import.meta.url))));
 app.use((req,res,next)=>{
   const session=(req.get('cookie')||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('fridge_monitor='))?.slice('fridge_monitor='.length);
-  if(req.method==='GET' && (/^\/fridges\/[^/]+\/thermal$/.test(req.path)||req.path==='/monitor/live')
+  if(req.method==='GET' && (/^\/fridges\/[^/]+\/(thermal|conditions)$/.test(req.path)||req.path==='/monitor/live')
     && ['127.0.0.1','localhost'].includes(req.hostname)
     && req.get('sec-fetch-site')==='same-origin'
     && (monitorSessions.get(session)||0)>Date.now())return next();
@@ -40,6 +42,19 @@ app.get('/monitor/live',(_req,res)=>{
   try{const reading=JSON.parse(readFileSync(new URL('.sensor-live',import.meta.url),'utf8'));
     res.json({...reading,stale:Date.now()-Date.parse(reading.captured_at)>20000,source:'local_preview_not_database'});
   }catch{res.json({stale:true,temperature_c:null,source:'local_preview_not_database'});}
+});
+app.get('/fridges/:id/conditions',async(req,res)=>{
+  const id=fridge.parse(req.params.id);
+  if(id!==conditionBaseline.fridge_id)return res.status(409).json({error:'no_condition_baseline_for_fridge'});
+  const now=new Date();
+  const result=await pool.query(`SELECT captured_at,temperature_c,moisture_raw,air_quality_raw,metadata
+    FROM fridge.sensor_readings WHERE fridge_id=$1 AND device_id=$2
+    AND captured_at BETWEEN $3 AND $4
+    AND COALESCE(metadata->>'recording_phase','monitoring')<>'cooldown'
+    ORDER BY captured_at ASC LIMIT 10001`,[id,conditionBaseline.device_id,new Date(+now-315000),now]);
+  if(result.rowCount>10000)return res.status(422).json({error:'condition_window_too_large'});
+  res.set('Cache-Control','no-store');
+  res.json({fridge_id:id,device_id:conditionBaseline.device_id,...conditionMetrics(result.rows,conditionBaseline,{now})});
 });
 app.get('/fridges/:id/thermal',async(req,res)=>{
   const q=z.object({start:timestamp.optional(),end:timestamp.optional(),device_id:fridge.optional(),threshold_c:z.coerce.number().finite().min(-40).max(85).default(4),max_gap_seconds:z.coerce.number().finite().min(1).max(300).default(15),stale_seconds:z.coerce.number().finite().min(1).max(600).default(20)}).parse(req.query);

@@ -1,5 +1,29 @@
 const $=id=>document.getElementById(id);
 let busy=false;
+let conditionsBusy=false;
+async function refreshConditions(){
+  if(conditionsBusy)return;conditionsBusy=true;
+  try{
+    const response=await fetch(`/fridges/${encodeURIComponent($('fridge').value)}/conditions`,{credentials:'same-origin',cache:'no-store'});
+    if(!response.ok)throw new Error('Condition data unavailable; refresh this page to reconnect.');
+    const m=await response.json();$('condition-error').textContent='';
+    $('confidence').textContent=`${m.monitoring_confidence_percent.toFixed(1)}%`;
+    $('condition-status').textContent=m.alerts.length?`Attention: ${m.alerts.map(c=>c.label).join(', ')}.`:m.status==='monitoring_incomplete'?'Monitoring incomplete: one or more sensors are unavailable.':m.status==='checking'?'Checking a sensor change…':'All readings are within the configured demo limits.';
+    const container=$('conditions');container.replaceChildren();
+    for(const c of m.conditions){
+      const card=document.createElement('div');card.className='card';
+      if(c.state==='alert')card.style.borderColor='#b34530';
+      const title=document.createElement('div');title.textContent=c.label;
+      const state=document.createElement('strong');state.style.fontSize='22px';state.textContent={alert:'ALERT',normal:'Within limits',pending:'Checking…',unknown:'Unknown'}[c.state];
+      const detail=document.createElement('p');detail.textContent=`${c.value===null?'Unavailable':c.value.toFixed(2)+' '+c.unit} · trigger ≥ ${c.threshold.toFixed(2)} ${c.unit}`;
+      const quality=document.createElement('small');quality.textContent=`Data coverage: ${m.channels[c.key].coverage_percent.toFixed(1)}%${c.key==='movement'&&c.recent_peak_g!==null?' · recent peak '+c.recent_peak_g.toFixed(3)+' g':''}`;
+      card.append(title,state,detail,quality);container.append(card);
+    }
+    $('condition-baseline').textContent=`Pre-demo reference: ${m.baseline.temperature_c} °C, moisture ${m.baseline.moisture_raw}, air ${m.baseline.air_quality_raw}. ${m.baseline.sample_count} saved readings. Physical trigger tests still needed.`;
+  }catch(error){
+    $('condition-error').textContent=error.message;$('condition-status').textContent='Condition updates unavailable. Displayed readings are from the last successful update.';$('confidence').textContent='Unavailable';
+  }finally{conditionsBusy=false;}
+}
 let liveBusy=false,livePoints=[];
 async function refreshLive(){
   if(liveBusy)return;liveBusy=true;
@@ -60,6 +84,8 @@ async function refresh(){
 }
 $('refresh').addEventListener('click',refresh);
 for(const id of ['window','threshold','fridge'])$(id).addEventListener('change',refresh);
+$('fridge').addEventListener('change',refreshConditions);
+void refreshConditions();setInterval(refreshConditions,2000);
 void refresh();
 setInterval(refresh,10000);
 void refreshLive();setInterval(refreshLive,2000);

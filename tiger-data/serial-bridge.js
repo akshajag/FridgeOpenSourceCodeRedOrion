@@ -6,6 +6,7 @@ import {existsSync,writeFileSync,rmSync} from 'node:fs';
 import {StabilityGate} from './stability.js';
 const pauseFile=new URL('.sensor-paused',import.meta.url);
 const waitingFile=new URL('.sensor-waiting',import.meta.url);
+const liveFile=new URL('.sensor-live',import.meta.url);
 if (process.argv.includes('--list')) {
   console.log(JSON.stringify((await SerialPort.list()).map(({path,manufacturer})=>({path,manufacturer})),null,2));
 } else {
@@ -22,6 +23,7 @@ if (process.argv.includes('--list')) {
   async function line(text) {
     const reading=parseSensorLine(text.trim());
     if (existsSync(pauseFile) || !reading) return;
+    writeFileSync(liveFile,JSON.stringify({captured_at:new Date().toISOString(),...reading}));
     if(waitForStable&&!baselineStartedAt){
       const status=gate.add(Date.now(),reading.temperature_c);
       if(Date.now()-lastStabilityLog>=15000){console.log('Waiting for stable temperature; no database writes',status);lastStabilityLog=Date.now();}
@@ -49,7 +51,10 @@ if (process.argv.includes('--list')) {
     if (stopping) return;
     port=new SerialPort({path:process.env.SERIAL_PORT,baudRate:Number(process.env.SERIAL_BAUD||115200),autoOpen:false});
     buffer='';
-    port.on('open',()=>console.log(waitForStable?'Arduino connected; waiting for initial temperature stability before saving.':'Arduino connected; saving at most one reading per interval.'));
+    port.on('open',()=>{
+      port.set({dtr:true,rts:true},error=>{if(error)console.error('USB serial readiness error:',error.code||error.message);});
+      console.log(waitForStable?'Arduino connected; waiting for initial temperature stability before saving.':'Arduino connected; saving at most one reading per interval.');
+    });
     port.on('data',chunk=>{ buffer+=chunk.toString(); const lines=buffer.split('\n'); buffer=lines.pop(); if(buffer.length>4096)buffer=''; for(const text of lines)void line(text); });
     const retry=()=>{if(!stopping&&!reconnect)reconnect=setTimeout(()=>{reconnect=undefined;connect();},5000);};
     port.on('error',error=>console.error('Serial error:',error.code||error.message));

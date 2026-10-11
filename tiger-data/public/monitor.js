@@ -1,5 +1,27 @@
 const $=id=>document.getElementById(id);
 let busy=false;
+let liveBusy=false,livePoints=[];
+async function refreshLive(){
+  if(liveBusy)return;liveBusy=true;
+  try{
+    const response=await fetch('/monitor/live',{credentials:'same-origin',cache:'no-store'});
+    if(!response.ok)throw new Error('unavailable');
+    const reading=await response.json();
+    $('live-temp').textContent=reading.temperature_c===null?'Waiting…':`${reading.temperature_c.toFixed(2)} °C`;
+    $('live-note').textContent=reading.stale?'Live readings unavailable or stale.':`Updated ${new Date(reading.captured_at).toLocaleTimeString()} · Local preview, separate from database recording.`;
+    if(!reading.stale&&livePoints.at(-1)?.captured_at!==reading.captured_at)livePoints.push(reading);
+    livePoints=livePoints.slice(-300);const svg=$('live-chart');svg.replaceChildren();
+    if(livePoints.length>1){
+      const low=Math.min(...livePoints.map(p=>p.temperature_c))-0.2,high=Math.max(...livePoints.map(p=>p.temperature_c))+0.2;
+      const start=Date.parse(livePoints[0].captured_at),end=Date.parse(livePoints.at(-1).captured_at);
+      const x=p=>55+800*(Date.parse(p.captured_at)-start)/(end-start),y=p=>220-190*(p.temperature_c-low)/(high-low);
+      for(let i=1;i<livePoints.length;i++)if(Date.parse(livePoints[i].captured_at)-Date.parse(livePoints[i-1].captured_at)<=15000)svg.append(svgNode('line',{x1:x(livePoints[i-1]),y1:y(livePoints[i-1]),x2:x(livePoints[i]),y2:y(livePoints[i]),stroke:'#246847','stroke-width':3}));
+      svg.append(svgNode('text',{x:0,y:30,fill:'#506356','font-size':13},`${high.toFixed(1)} °C`));
+      svg.append(svgNode('text',{x:0,y:220,fill:'#506356','font-size':13},`${low.toFixed(1)} °C`));
+    }
+  }catch{$('live-note').textContent='Live preview unavailable; refresh this page to reconnect.';}
+  finally{liveBusy=false;}
+}
 const format=n=>n.toLocaleString(undefined,{maximumFractionDigits:2});
 function svgNode(tag,attributes,text){const node=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [key,value] of Object.entries(attributes))node.setAttribute(key,value);if(text!==undefined)node.textContent=text;return node;}
 function chart(m){
@@ -40,3 +62,4 @@ $('refresh').addEventListener('click',refresh);
 for(const id of ['window','threshold','fridge'])$(id).addEventListener('change',refresh);
 void refresh();
 setInterval(refresh,10000);
+void refreshLive();setInterval(refreshLive,2000);

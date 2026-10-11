@@ -4,7 +4,7 @@ import {z} from 'zod';
 import {makePool} from './db.js';
 import {fileURLToPath} from 'node:url';
 import {getThermalMetrics} from './thermal-query.js';
-import {existsSync} from 'node:fs';
+import {existsSync,readFileSync} from 'node:fs';
 const pool=makePool(), app=express();
 // Automatic localhost dashboard sessions can read thermal metrics only.
 // They never grant the browser the backend token or permission to write data.
@@ -25,7 +25,7 @@ app.get('/monitor',(req,res)=>{
 app.get('/monitor.js',(_req,res)=>res.sendFile(fileURLToPath(new URL('./public/monitor.js',import.meta.url))));
 app.use((req,res,next)=>{
   const session=(req.get('cookie')||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('fridge_monitor='))?.slice('fridge_monitor='.length);
-  if(req.method==='GET' && /^\/fridges\/[^/]+\/thermal$/.test(req.path)
+  if(req.method==='GET' && (/^\/fridges\/[^/]+\/thermal$/.test(req.path)||req.path==='/monitor/live')
     && ['127.0.0.1','localhost'].includes(req.hostname)
     && req.get('sec-fetch-site')==='same-origin'
     && (monitorSessions.get(session)||0)>Date.now())return next();
@@ -35,6 +35,12 @@ app.use((req,res,next)=>{
 });
 const uuid=z.string().uuid(), timestamp=z.string().datetime({offset:true});
 const fridge=z.string().min(1).max(100), json=z.record(z.string(),z.unknown());
+app.get('/monitor/live',(_req,res)=>{
+  res.set('Cache-Control','no-store');
+  try{const reading=JSON.parse(readFileSync(new URL('.sensor-live',import.meta.url),'utf8'));
+    res.json({...reading,stale:Date.now()-Date.parse(reading.captured_at)>20000,source:'local_preview_not_database'});
+  }catch{res.json({stale:true,temperature_c:null,source:'local_preview_not_database'});}
+});
 app.get('/fridges/:id/thermal',async(req,res)=>{
   const q=z.object({start:timestamp.optional(),end:timestamp.optional(),device_id:fridge.optional(),threshold_c:z.coerce.number().finite().min(-40).max(85).default(4),max_gap_seconds:z.coerce.number().finite().min(1).max(300).default(15),stale_seconds:z.coerce.number().finite().min(1).max(600).default(20)}).parse(req.query);
   const end=q.end?new Date(q.end):new Date(),start=q.start?new Date(q.start):new Date(+end-3600000);

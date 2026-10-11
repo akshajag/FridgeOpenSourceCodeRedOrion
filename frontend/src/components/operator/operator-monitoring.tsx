@@ -72,7 +72,7 @@ function MonitoringContent() {
         </div>
 
         <div className="space-y-4">
-          <ConnectionPanel fridge={fridge} now={now} />
+          <ConnectionPanel fridge={fridge} now={now} conditions={data.hardwareConditions} />
           <ThresholdsPanel fridge={fridge} onSave={(thresholds) => actions.updateFridge(fridge.id, { thresholds })} />
           <ReadingPanel fridge={fridge} mode={mode} record={(metric, value) => actions.recordSensorReading(fridge.id, metric, value, mode === "demo" ? "demo" : "hardware")} />
           <TimestampsPanel data={data} fridge={fridge} now={now} />
@@ -130,7 +130,7 @@ function MetricPanel({ metric, data, fridge, rangeMs, now, height }: { metric: S
   );
 }
 
-function ConnectionPanel({ fridge, now }: { fridge: Fridge; now: number }) {
+function ConnectionPanel({ fridge, now, conditions }: { fridge: Fridge; now: number; conditions?: FridgeyDataset["hardwareConditions"] }) {
   const caps = fridge.capabilities;
   const cameraState = (installed: boolean) => {
     if (!installed) return { tone: "neutral" as const, label: "Not installed" };
@@ -145,6 +145,11 @@ function ConnectionPanel({ fridge, now }: { fridge: Fridge; now: number }) {
       <PanelHeader title="Connection" description="Board heartbeat and attached devices." />
       <PanelBody>
         <dl className="space-y-2.5 text-[13px]">
+          {conditions && <>
+            <div className="flex justify-between"><dt className="text-muted-foreground">Contact moisture</dt><dd>{conditions.moisture ?? "—"} raw · alert at {conditions.moistureThreshold}</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">Movement peak</dt><dd>{conditions.movement?.toFixed(3) ?? "—"} g · alert above {conditions.movementThreshold} g</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">Data coverage · last 5 min</dt><dd>{conditions.confidence.toFixed(1)}%</dd></div>
+          </>}
           <div className="flex items-center justify-between gap-3">
             <dt className="flex items-center gap-1.5 text-muted-foreground"><Radio className="size-3.5" aria-hidden="true" /> Board</dt>
             <dd><StatusDot tone={fridgeStatusTone(fridge.status)} label={fridgeStatusLabel(fridge.status)} pulse={fridge.status === "online"} className="text-[13px]" /></dd>

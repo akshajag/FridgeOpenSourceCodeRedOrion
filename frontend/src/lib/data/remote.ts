@@ -29,7 +29,7 @@ const post = (path: string, body: unknown) => request(path, { method: "POST", bo
  */
 export function createRemoteActions(invalidate: () => Promise<unknown>): FridgeyActions {
   const fire = (path: string, body: unknown) => {
-    if (process.env.NEXT_PUBLIC_FRIDGE_HARDWARE_MODE === "1") throw new Error("Use the fridge kiosk to record verified donations. Hardware alerts clear when sensor conditions recover.");
+    if (process.env.NEXT_PUBLIC_FRIDGE_HARDWARE_MODE === "1") throw new Error("This dashboard reads the hardware database. Record inventory through the donation device; sensor alerts clear when conditions recover.");
     void post(path, body).then(invalidate).catch(error => console.error("Dashboard update failed", error));
   };
   const notLive = (name: string) => {

@@ -156,7 +156,9 @@ export type AlertType =
   | "expiring_soon"
   | "unconfirmed_removal"
   | "air_quality"
-  | "humidity";
+  | "humidity"
+  | "contact_moisture"
+  | "movement";
 
 export type AlertSeverity = "info" | "warning" | "critical";
 
@@ -297,6 +299,7 @@ export interface RewardTransaction {
 }
 
 export interface FridgeyDataset {
+  hardwareConditions?: { confidence: number; moisture: number | null; movement: number | null; moistureThreshold: number; movementThreshold: number };
   users: User[];
   organizations: Organization[];
   fridges: Fridge[];

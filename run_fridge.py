@@ -12,6 +12,7 @@ ROOT=Path(__file__).resolve().parent
 
 def main():
     parser=argparse.ArgumentParser()
+    parser.add_argument('--data-only',action='store_true',help='Run sensors, Tiger Data API and the original team dashboard without cameras or voice')
     parser.add_argument('--dev',action='store_true',help='Use the frontend development server rather than an available production build')
     parser.add_argument('--mvp',action='store_true',help='Run the unified browser kiosk and hardware dashboard')
     parser.add_argument('--voice',action='store_true',help='Run ElevenLabs camera/voice window instead of the feature test bench')
@@ -53,6 +54,17 @@ def main():
             if not ownership.stdout.strip():start(['npm','run','sensors'],'sensors',ROOT/'tiger-data')
             else:print('Arduino port is already in use; reusing the running reader. Close Serial Monitor if data stays stale.',flush=True)
         else:print('Arduino USB port is missing. Camera software can run; reconnect Arduino for sensor data.',flush=True)
+        if args.data_only:
+            built=(ROOT/'frontend'/'.next-check'/'BUILD_ID').exists() and not args.dev
+            if built:os.environ['NEXT_DIST_DIR']='.next-check'
+            try:
+                urllib.request.urlopen('http://127.0.0.1:3001',timeout=2)
+                print('Dashboard is already running: http://localhost:3001/dashboard/operator',flush=True)
+                while True:time.sleep(1)
+            except (OSError, urllib.error.URLError):
+                frontend=start(['npm','run','start' if built else 'dev','--','--hostname','0.0.0.0','--port','3001'],'frontend',ROOT/'frontend')
+                print('Original frontend: http://localhost:3001 · Live dashboard: http://localhost:3001/dashboard/operator',flush=True)
+                return frontend.wait()
         camera=os.getenv('FRIDGE_CAMERA_INDEX','0');shelf=os.getenv('FRIDGE_INVENTORY_CAMERA','1')
         command=[sys.executable,'fridge_ui.py' if args.voice else 'fridge_testbench.py','--camera',camera,'--inventory-camera',shelf,*extra]
         if args.voice and args.configure_agent:

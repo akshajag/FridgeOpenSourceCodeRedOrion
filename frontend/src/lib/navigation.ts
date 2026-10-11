@@ -11,6 +11,8 @@ import {
   BellRing,
   Link2,
   ScanLine,
+  Trophy,
+  Coins,
   Compass,
 } from "lucide-react";
 
@@ -32,6 +34,7 @@ export const NAV: Record<Role, { title: string; home: string; items: NavItem[] }
       { href: "/dashboard/food-bank/network", label: "Network", icon: Network },
       { href: "/dashboard/food-bank/missions", label: "Rescue missions", icon: Flag },
       { href: "/dashboard/food-bank/events", label: "Community events", icon: CalendarRange },
+      { href: "/dashboard/food-bank/rewards", label: "Rewards", icon: Coins },
     ],
   },
   operator: {
@@ -41,7 +44,7 @@ export const NAV: Record<Role, { title: string; home: string; items: NavItem[] }
       { href: "/dashboard/operator", label: "Overview", icon: LayoutDashboard, exact: true },
       { href: "/dashboard/operator/monitoring", label: "Live monitoring", icon: Activity },
       { href: "/dashboard/operator/inventory", label: "Inventory", icon: Boxes },
-      { href: "/kiosk", label: "Donation kiosk", icon: ScanLine },
+      { href: "/dashboard/operator/scan", label: "Camera scan", icon: ScanLine },
       { href: "/dashboard/operator/alerts", label: "Alerts", icon: BellRing },
       { href: "/dashboard/operator/connections", label: "Connected food banks", icon: Link2 },
     ],
@@ -53,6 +56,8 @@ export const NAV: Record<Role, { title: string; home: string; items: NavItem[] }
       { href: "/dashboard/donor", label: "Overview", icon: LayoutDashboard, exact: true },
       { href: "/dashboard/donor/find", label: "Find a fridge", icon: Compass },
       { href: "/dashboard/donor/missions", label: "Missions", icon: Flag },
+      { href: "/dashboard/donor/leaderboard", label: "Leaderboard", icon: Trophy },
+      { href: "/dashboard/donor/rewards", label: "Rewards", icon: Coins },
     ],
   },
 };

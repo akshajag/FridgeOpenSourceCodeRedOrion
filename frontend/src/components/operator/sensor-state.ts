@@ -87,9 +87,11 @@ export const ALERT_TYPE_LABEL: Record<AlertType, string> = {
   unconfirmed_removal: "Unconfirmed removal",
   air_quality: "Air quality",
   humidity: "Humidity",
+  contact_moisture: "Contact moisture",
+  movement: "Fridge movement",
 };
 
-export const ALERT_TYPES: AlertType[] = ["temperature_excursion", "sensor_offline", "expiring_soon", "unconfirmed_removal", "air_quality", "humidity"];
+export const ALERT_TYPES: AlertType[] = ["temperature_excursion", "sensor_offline", "expiring_soon", "unconfirmed_removal", "air_quality", "humidity", "contact_moisture", "movement"];
 
 export const EVENT_TYPE_LABEL: Record<InventoryEvent["type"], string> = {
   added: "Added",

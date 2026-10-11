@@ -1,3 +1,5 @@
+> Current sensor/dashboard setup: see [DATA-DASHBOARD.md](DATA-DASHBOARD.md). Use `Launch Data Dashboard.command` for the original frontend with Tiger Data. Camera and voice run on the separate donation device; older combined-kiosk instructions below describe the previous workflow.
+
 # Nourish — Smart Community Fridge
 
 CodeRED Orion 2026 project for community food donation and fridge monitoring.

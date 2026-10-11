@@ -1,5 +1,4 @@
 "use client";
-import { HardwareConditions } from "./hardware-conditions";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -134,7 +133,6 @@ function OverviewContent() {
       </Panel>
 
       {/* Hero: temperature dominates. */}
-      {process.env.NEXT_PUBLIC_FRIDGE_HARDWARE_MODE === "1" && <HardwareConditions />}
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel tone="sensor" className="lg:col-span-2">
           <PanelHeader
@@ -172,7 +170,7 @@ function OverviewContent() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
           <SensorReadout metric="humidity" latest={latestHumidity} history={humidity} unit={METRIC_UNIT.humidity} state={sensorState("humidity", latestHumidity, th, now)} supported={caps.humidity} note={th.humidityMaxPct !== undefined ? `max ${th.humidityMaxPct} %` : undefined} />
-          <SensorReadout metric="air_quality" latest={latestAir} history={air} unit={METRIC_UNIT.air_quality} state={sensorState("air_quality", latestAir, th, now)} supported={caps.airQuality} note={th.airQualityMaxPpm !== undefined ? `max ${th.airQualityMaxPpm.toLocaleString()} raw` : undefined} />
+          <SensorReadout metric="air_quality" latest={latestAir} history={air} unit={METRIC_UNIT.air_quality} state={sensorState("air_quality", latestAir, th, now)} supported={caps.airQuality} note={th.airQualityMaxPpm !== undefined ? `max ${th.airQualityMaxPpm.toLocaleString()} ppm` : undefined} />
         </div>
       </div>
 
@@ -308,7 +306,7 @@ export function RejectDonationDialog({ donation, onClose, onConfirm }: { donatio
         <DialogHeader>
           <DialogTitle>Reject this donation?</DialogTitle>
           <DialogDescription>
-            {donation ? `${donation.quantity} ${donation.unit} of ${donation.itemName} will not be added to inventory. Give the donor a short reason.` : ""}
+            {donation ? `${donation.quantity} ${donation.unit} of ${donation.itemName} will not be added to inventory and earns no points. Give the donor a short reason.` : ""}
           </DialogDescription>
         </DialogHeader>
         <form

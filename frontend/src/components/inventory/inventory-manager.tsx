@@ -125,7 +125,7 @@ function InventoryContent() {
       <PageHeader
         title="Inventory"
         description={`${items.length} line items · ${total} units estimated from camera counts and check-ins.`}
-        actions={<Button type="button" disabled={process.env.NEXT_PUBLIC_FRIDGE_HARDWARE_MODE === "1"} onClick={() => setDialog({ mode: "add" })}><Plus aria-hidden="true" /> Add item</Button>}
+        actions={<Button type="button" onClick={() => setDialog({ mode: "add" })}><Plus aria-hidden="true" /> Add item</Button>}
       />
 
       {review.length > 0 && (
@@ -199,7 +199,7 @@ function InventoryContent() {
 
             {filtered.length === 0 ? (
               <div className="p-5">
-                <EmptyState compact icon={<Boxes />} title={items.length === 0 ? "The fridge is empty" : "No items match these filters"} description={items.length === 0 ? "Items appear here when the interior camera recognizes them or when you add them by hand." : "Try clearing the search or widening the status filter."} action={items.length === 0 ? <Button type="button" size="sm" disabled={process.env.NEXT_PUBLIC_FRIDGE_HARDWARE_MODE === "1"} onClick={() => setDialog({ mode: "add" })}><Plus aria-hidden="true" /> Add item</Button> : undefined} />
+                <EmptyState compact icon={<Boxes />} title={items.length === 0 ? "The fridge is empty" : "No items match these filters"} description={items.length === 0 ? "Items appear here when the interior camera recognizes them or when you add them by hand." : "Try clearing the search or widening the status filter."} action={items.length === 0 ? <Button type="button" size="sm" onClick={() => setDialog({ mode: "add" })}><Plus aria-hidden="true" /> Add item</Button> : undefined} />
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -253,7 +253,7 @@ function InventoryContent() {
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button type="button" variant="ghost" size="icon-sm" disabled={process.env.NEXT_PUBLIC_FRIDGE_HARDWARE_MODE === "1"} aria-label={`Actions for ${i.name}`}><MoreHorizontal /></Button>
+                                <Button type="button" variant="ghost" size="icon-sm" aria-label={`Actions for ${i.name}`}><MoreHorizontal /></Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48">
                                 {needsReview && (

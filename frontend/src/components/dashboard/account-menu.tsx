@@ -36,7 +36,7 @@ export function AccountMenu({ session }: { session: ShellSession }) {
         <DropdownMenuLabel>
           <div className="text-[13px] font-medium">{session.name}</div>
           <div className="text-[12px] font-normal text-muted-foreground">
-            {session.memberships.map((m) => ROLE_LABELS[m.role]).join(", ") || "No role yet"} · {session.mode === "demo" ? "Demo account" : session.name === "Local fridge operator" ? "Local device access" : "Signed in"}
+            {session.memberships.map((m) => ROLE_LABELS[m.role]).join(", ") || "No role yet"} · {session.mode === "demo" ? "Demo account" : "Signed in"}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

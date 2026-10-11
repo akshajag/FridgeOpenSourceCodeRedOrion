@@ -22,7 +22,7 @@ const ROLES = [
     icon: Refrigerator,
     title: "Fridge operators",
     lead: "Know how your fridge is doing without opening it.",
-    items: ["Temperature, humidity, and air-quality history", "Camera recognitions you confirm or correct", "Anomalies flagged for review, never guessed at", "Control exactly what each food bank can see"],
+    items: ["Temperature, moisture, and air-quality history", "Camera recognitions you confirm or correct", "Anomalies flagged for review, never guessed at", "Control exactly what each food bank can see"],
     href: "/demo",
     cta: "See the operator dashboard",
   },
@@ -30,20 +30,20 @@ const ROLES = [
     icon: HandHeart,
     title: "Donors",
     lead: "Bring food where it is needed and watch it count.",
-    items: ["Nearby fridges with what they have and need", "Missions with clear eligibility and deadlines", "Neighborhood territories and impact leaderboards", "Optional Solana Devnet rewards"],
+    items: ["Nearby fridges with what they have and need", "Missions with clear eligibility and deadlines", "Neighborhood territories and impact leaderboards", "Weekly Solana reward simulation"],
     href: "/demo",
     cta: "See the donor dashboard",
   },
 ];
 
 const KIT = [
-  { name: "Front camera", role: "Detects approach and door events; timestamps drop-offs." },
+  { name: "Front camera", role: "Captures presented food for barcode reading and Gemini identification." },
   { name: "Interior camera", role: "Captures shelf frames for Gemini food recognition." },
-  { name: "Temperature probe", role: "Cabinet temperature, logged every 60 seconds." },
-  { name: "Air-quality sensor", role: "CO₂-equivalent in ppm; rises as produce spoils." },
-  { name: "Moisture module", role: "Optional humidity sensing for produce-heavy fridges." },
+  { name: "Temperature probe", role: "Cabinet temperature, uploaded every five seconds when connected." },
+  { name: "Air-quality sensor", role: "Relative gas-sensor readings flag changes for review; not a food-spoilage test." },
+  { name: "Moisture module", role: "Detects moisture by contact; does not measure relative humidity." },
   { name: "Speaker", role: "ElevenLabs voice for hands-free donor check-in." },
-  { name: "Arduino-compatible board", role: "Reads sensors, drives cameras, posts to the Nourish API." },
+  { name: "Arduino-compatible board", role: "Reads sensors over USB; the fridge Mac runs cameras and uploads data." },
 ];
 
 export default function LandingPage() {
@@ -52,9 +52,9 @@ export default function LandingPage() {
   const integrations = [
     { name: "Clerk authentication", live: status.clerk, note: "Google and email sign-in, protected dashboards" },
     { name: "TigerData / PostgreSQL", live: status.database, note: "Persistent records and sensor time-series" },
-    { name: "Gemini", live: status.gemini, note: "Food recognition and expiration-date extraction" },
-    { name: "ElevenLabs", live: status.elevenlabs, note: "Voice-assisted donations" },
-    { name: "Solana Devnet", live: status.solana, note: "Reward payouts after verified completion" },
+    { name: "Gemini", live: status.gemini || status.fridgeStation, label: status.gemini ? "Configured" : status.fridgeStation ? "Via fridge station" : "Not configured", note: "Food recognition and expiration-date extraction on the fridge Mac" },
+    { name: "ElevenLabs", live: status.elevenlabs || status.fridgeStation, label: status.elevenlabs ? "Configured" : status.fridgeStation ? "Via fridge station" : "Not configured", note: "Voice-assisted donations through the connected fridge station" },
+    { name: "Solana rewards", live: true, label: "Demo payouts", note: "Weekly top-three leaderboard rewards · simulated SOL payouts" },
     { name: "Fridge hardware ingest", live: status.hardware, note: "Sensor readings from the Arduino board" },
   ];
 
@@ -131,7 +131,7 @@ export default function LandingPage() {
           <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
             <div>
               <h2 className="font-display text-[30px] font-semibold leading-[1.05] tracking-tight md:text-[40px]">Clear about what is live.</h2>
-              <p className="mt-4 text-[15px] leading-relaxed text-ink-muted">Demo mode runs on a synthetic Houston dataset stored in your browser, labeled wherever it appears. Live mode uses real accounts, a real database, and real hardware. This deployment currently has the following configured:</p>
+              <p className="mt-4 text-[15px] leading-relaxed text-ink-muted">Demo mode uses clearly labeled mock community data. Live monitoring and inventory use Tiger Data. Gemini and ElevenLabs run on the fridge Mac, linked through the camera station; that Mac must stay online. Weekly leaderboard SOL payouts are simulated. Integration setup is shown below; these labels do not indicate current device health:</p>
               <div className="mt-6 flex gap-2">
                 <Button asChild><Link href="/demo">Open demo mode</Link></Button>
               </div>
@@ -147,7 +147,7 @@ export default function LandingPage() {
                     <div className="font-display text-[14px] font-semibold">{it.name}</div>
                     <div className="text-[12.5px] text-ink-muted">{it.note}</div>
                   </div>
-                  <span className={cn("text-[12px] font-medium", it.live ? "text-primary" : "text-ink-faint")}>{it.live ? "Configured" : "Not configured"}</span>
+                  <span className={cn("text-[12px] font-medium", it.live ? "text-primary" : "text-ink-faint")}>{it.label ?? (it.live ? "Configured" : "Not configured")}</span>
                 </li>
               ))}
             </ul>

@@ -1,8 +1,3 @@
-import type { Metadata } from "next";
-import { MissionsPage } from "@/components/food-bank/missions";
-
-export const metadata: Metadata = { title: "Rescue missions" };
-
-export default function Page() {
-  return <MissionsPage />;
-}
+import {RescueMissions} from "@/components/community/rescue-missions";
+export const metadata={title:"Food rescue missions"};
+export default function Page(){return <RescueMissions/>}

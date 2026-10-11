@@ -1,0 +1,15 @@
+# Rescue missions and Solana rewards
+
+Missions now include perishable surplus rescues and time-sensitive food-bank deliveries, with pickup/destination, receiving deadline, quantity and handling instructions. The three seeded scenarios are explicitly fictional CodeRED: Orion community demos. Join, simulate pickup, then simulate receiving confirmation; pickup ownership prevents another volunteer completing that same trip. Expired windows block progression. Original refill missions remain expandable below. Demo actions do not alter real inventory or create actual reward allocations.
+
+Rewards use `/api/rewards/account` and Tiger Data's `fridge.reward_wallets` / `fridge.rewards`, independently of private operator sensor data. Google-authenticated donors can see their own ledger and save a public Solana recipient address. Private keys remain server-side. Phantom linking is optional; manual public-address entry works without an extension. Saving a public address does not prove wallet ownership, so it is only a recipient preference, never an identity/authentication credential.
+
+The dashboard reports the actual Devnet connection and server payer's balance, cached 30 seconds. Payouts always use the official Devnet endpoint. These tokens have no cash value. No transaction is issued just by loading a page or completing a fictional mission.
+
+A real allocation needs user ID, organization ID, mission title, amount and receiver verification. Its `verified_at` and `approved_at` must be set by the food bank's authorized verification process and status must be `approved`. No automatic allocation generation or administrator approval UI was added for the simulated community missions. The camera donation workflow still needs a trusted link to the donor's authenticated account before real verified mission rewards can be generated.
+
+`POST /api/rewards/payout` requires a real food-bank membership for the allocation organization. It atomically claims that approved/verified row and reads its amount and saved recipient from Tiger Data, ignoring client-supplied amount/address. A repeated request cannot claim the same reward twice. Successful transfers save the signature; uncertain results remain locked for administrator reconciliation rather than automatically resending. An interrupted process can leave `processing`, also requiring manual review.
+
+Migration: `tiger db query ym0p9v6xv2 --file tiger-data/migrations/003_rewards.sql`. Applied to the demo service. `npm run verify` tests wallet/amount lookup, verification/approval gates and duplicate payout-claim prevention in a rolled-back transaction. No test payout was made and no fake reward history is inserted.
+
+Camera launch: `.venv/bin/python run_fridge.py --voice` from the repository root. Default private audit interval was corrected from 3600 to 300 seconds. The model fallback now uses the current Flash model instead of the retired fallback. Gemini availability and camera connectivity still affect actual recognition. The initial scheduled camera audit waits briefly for startup frames.

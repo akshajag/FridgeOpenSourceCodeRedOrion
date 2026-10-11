@@ -1,5 +1,3 @@
-import { CommunityHub } from "@/components/community/community-hub";
-export const metadata = { title: "Missions · Nourish" };
-export default function Page() {
-  return <CommunityHub view="missions" />;
-}
+import {RescueMissions} from "@/components/community/rescue-missions";
+export const metadata={title:"Food rescue missions"};
+export default function Page(){return <RescueMissions/>}

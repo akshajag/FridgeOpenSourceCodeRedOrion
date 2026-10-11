@@ -10,7 +10,15 @@ import "server-only";
  * Payouts are only ever invoked for allocations that are already `approved` by an authorized
  * food-bank administrator after verified mission completion.
  */
-import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+import {
+  Connection,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  sendAndConfirmTransaction,
+} from "@solana/web3.js";
 
 export interface PayoutResult {
   network: "devnet" | "simulated";
@@ -26,7 +34,8 @@ export function isSolanaConfigured() {
 
 function loadPayer(): Keypair {
   const raw = process.env.SOLANA_PAYER_SECRET_KEY!;
-  if (raw.trim().startsWith("[")) return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(raw) as number[]));
+  if (raw.trim().startsWith("["))
+    return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(raw) as number[]));
   // base58
   const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
   const bytes: number[] = [];
@@ -59,21 +68,91 @@ export function isValidSolanaAddress(address: string): boolean {
   }
 }
 
-export async function payReward(toAddress: string, amountSol: number): Promise<PayoutResult> {
+export async function payReward(
+  toAddress: string,
+  amountSol: number,
+): Promise<PayoutResult> {
   if (!isSolanaConfigured()) {
     // Simulated payout: deterministic-looking but clearly labeled.
-    const sig = `SIMULATED${Array.from(crypto.getRandomValues(new Uint8Array(28))).map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+    const sig = `SIMULATED${Array.from(
+      crypto.getRandomValues(new Uint8Array(28)),
+    )
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")}`;
     return { network: "simulated", signature: sig, status: "confirmed" };
   }
   try {
-    const connection = new Connection(process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com", "confirmed");
+    const connection = new Connection(
+      "https://api.devnet.solana.com",
+      "confirmed",
+    );
     const payer = loadPayer();
     const tx = new Transaction().add(
-      SystemProgram.transfer({ fromPubkey: payer.publicKey, toPubkey: new PublicKey(toAddress), lamports: Math.round(amountSol * LAMPORTS_PER_SOL) }),
+      SystemProgram.transfer({
+        fromPubkey: payer.publicKey,
+        toPubkey: new PublicKey(toAddress),
+        lamports: Math.round(amountSol * LAMPORTS_PER_SOL),
+      }),
     );
     const signature = await sendAndConfirmTransaction(connection, tx, [payer]);
-    return { network: "devnet", signature, status: "confirmed", explorerUrl: `https://explorer.solana.com/tx/${signature}?cluster=devnet` };
+    return {
+      network: "devnet",
+      signature,
+      status: "confirmed",
+      explorerUrl: `https://explorer.solana.com/tx/${signature}?cluster=devnet`,
+    };
   } catch (err) {
-    return { network: "devnet", signature: "", status: "failed", error: (err as Error).message };
+    return {
+      network: "devnet",
+      signature: "",
+      status: "failed",
+      error: (err as Error).message,
+    };
   }
+}
+
+let statusCache:
+  | { at: number; value: Awaited<ReturnType<typeof readDevnetStatus>> }
+  | undefined;
+async function readDevnetStatus() {
+  if (!isSolanaConfigured())
+    return {
+      network: "devnet",
+      configured: false,
+      connected: false,
+      balanceSol: null,
+      address: null,
+    };
+  try {
+    const payer = loadPayer();
+    const c = new Connection("https://api.devnet.solana.com", "confirmed");
+    const balance = await Promise.race([
+      c.getBalance(payer.publicKey),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("RPC timeout")), 8000),
+      ),
+    ]);
+    return {
+      network: "devnet",
+      configured: true,
+      connected: true,
+      balanceSol: balance / LAMPORTS_PER_SOL,
+      address: payer.publicKey.toBase58(),
+    };
+  } catch {
+    return {
+      network: "devnet",
+      configured: true,
+      connected: false,
+      balanceSol: null,
+      address: null,
+    };
+  }
+}
+export async function devnetStatus() {
+  if (statusCache && Date.now() - statusCache.at < 30000)
+    return statusCache.value;
+  const value = await readDevnetStatus();
+  statusCache = { at: Date.now(), value };
+  return value;
 }

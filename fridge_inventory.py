@@ -126,6 +126,7 @@ class InventoryAuditor:
         self._wake.set()
 
     def _loop(self) -> None:
+        if self._stop.wait(CAMERA_WARMUP_S): return
         while not self._stop.is_set():
             try:
                 self.audit_now()

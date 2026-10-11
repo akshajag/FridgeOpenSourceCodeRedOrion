@@ -21,6 +21,7 @@ export type Refill = {
 };
 export type CommunityWorld = {
   demo: true;
+  rescues?: RescueMission[];
   version?: number;
   memberships?: Record<string, string[]>;
   viewer?: { id: string; name: string; joined: string[] } | null;
@@ -302,7 +303,10 @@ export function setMission(
   fridgeId: string,
   join: boolean,
 ): CommunityWorld {
-  if (!world.fridges.some((f) => f.id === fridgeId))
+  if (
+    !world.fridges.some((f) => f.id === fridgeId) &&
+    !world.rescues?.some((m) => m.id === fridgeId)
+  )
     throw new Error("Unknown mission.");
   const current = world.memberships?.[userId] ?? [];
   return {
@@ -313,5 +317,98 @@ export function setMission(
         ? [...new Set([...current, fridgeId])]
         : current.filter((id) => id !== fridgeId),
     },
+  };
+}
+
+export type RescueMission = {
+  id: string;
+  title: string;
+  kind: "rescue" | "delivery";
+  food: string;
+  quantity: number;
+  pickup: string;
+  destination: string;
+  deadline: string;
+  handling: string;
+  rewardSol: number;
+  stage: "open" | "picked_up" | "delivered";
+  assignedTo?: string;
+};
+export function seedRescues(now = Date.now()): RescueMission[] {
+  return [
+    {
+      id: "rescue-meals",
+      title: "Get meals to the next meal service",
+      kind: "delivery",
+      food: "Chilled prepared meals",
+      quantity: 24,
+      pickup: "Community Table fridge · Midtown",
+      destination: "Orion evening meal service · Third Ward",
+      deadline: new Date(now + 45 * 60000).toISOString(),
+      handling:
+        "Keep chilled in an insulated carrier. Receiving volunteer confirms quantity and condition.",
+      rewardSol: 0.03,
+      stage: "open",
+    },
+    {
+      id: "rescue-produce",
+      title: "Rescue surplus produce before pickup closes",
+      kind: "rescue",
+      food: "Fresh produce crates",
+      quantity: 12,
+      pickup: "CodeRED demo market · East End",
+      destination: "Navigation community food bank",
+      deadline: new Date(now + 90 * 60000).toISOString(),
+      handling:
+        "Collect only accepted produce. Confirm the receiving site is open before leaving.",
+      rewardSol: 0.02,
+      stage: "open",
+    },
+    {
+      id: "rescue-dairy",
+      title: "Deliver dairy for the morning distribution",
+      kind: "delivery",
+      food: "Sealed milk and yogurt",
+      quantity: 18,
+      pickup: "Cougar Community Fridge · University",
+      destination: "MLH demo neighborhood pantry",
+      deadline: new Date(now + 120 * 60000).toISOString(),
+      handling:
+        "Check date labels and maintain the cold chain. A sensor alert requires review before transport.",
+      rewardSol: 0.025,
+      stage: "open",
+    },
+  ];
+}
+export function advanceRescue(
+  world: CommunityWorld,
+  userId: string,
+  id: string,
+  action: "pickup" | "deliver",
+): CommunityWorld {
+  const mission = world.rescues?.find((m) => m.id === id);
+  if (!mission) throw new Error("Unknown rescue mission.");
+  if (!(world.memberships?.[userId] ?? []).includes(id))
+    throw new Error("Join this mission first.");
+  if (mission.assignedTo && mission.assignedTo !== userId)
+    throw new Error("Another volunteer has this delivery.");
+  if (Date.parse(mission.deadline) < Date.now())
+    throw new Error("This delivery window has closed.");
+  if (action === "deliver" && mission.stage !== "picked_up")
+    throw new Error("Confirm pickup before delivery.");
+  if (mission.stage === "delivered")
+    throw new Error("This demo delivery is already complete.");
+  return {
+    ...world,
+    rescues: world.rescues?.map((m) =>
+      m.id === id
+        ? {
+            ...m,
+            stage: action === "pickup" ? "picked_up" : "delivered",
+            assignedTo: userId,
+          }
+        : m,
+    ),
+    updatedAt: new Date().toISOString(),
   };
 }

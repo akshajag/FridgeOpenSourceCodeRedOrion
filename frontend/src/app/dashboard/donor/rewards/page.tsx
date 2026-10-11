@@ -1,7 +1,3 @@
-import { DonorRewards } from "@/components/rewards/donor-rewards";
-
-export const metadata = { title: "Rewards · Donor" };
-
-export default function Page() {
-  return <DonorRewards />;
-}
+import {LiveRewards} from "@/components/rewards/live-rewards";
+export const metadata={title:"Rewards"};
+export default function Page(){return <LiveRewards/>}

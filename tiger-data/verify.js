@@ -23,6 +23,14 @@ try{
   assert.equal(catalog.display_image_url,'https://images.openfoodfacts.org/test.jpg');
   assert.equal(catalog.metadata.vision_details.category,'Canned food');
   assert.equal(catalog.recorded_quantity,2);
+  const reward=randomUUID(),user='verification-'+randomUUID(),address='3R3u9dYM7LpAdLLV8TpLL1WoovpMhzsayHwXZXYYsRvP';
+  await client.query('INSERT INTO fridge.reward_wallets(user_id,address) VALUES($1,$2)',[user,address]);
+  await client.query("INSERT INTO fridge.rewards(id,user_id,organization_id,mission_title,amount_sol,status) VALUES($1,$2,'test-org','verification-only',0.01,'approved')",[reward,user]);
+  const claim=()=>client.query("UPDATE fridge.rewards r SET status='processing',recipient_address=w.address FROM fridge.reward_wallets w WHERE r.id=$1 AND r.organization_id='test-org' AND r.user_id=w.user_id AND r.status='approved' AND r.verified_at IS NOT NULL AND r.approved_at IS NOT NULL RETURNING r.*",[reward]);
+  assert.equal((await claim()).rowCount,0);
+  await client.query('UPDATE fridge.rewards SET verified_at=now(),approved_at=now() WHERE id=$1',[reward]);
+  const first=await claim();assert.equal(first.rowCount,1);assert.equal(first.rows[0].recipient_address,address);assert.equal(Number(first.rows[0].amount_sol),0.01);
+  assert.equal((await claim()).rowCount,0);
   await client.query('ROLLBACK');
-  console.log(JSON.stringify({ok:true,tables,hypertable:'sensor_readings',checks:['sensor write','product and donation write','duplicate donation prevented','unusable audit preserves inventory','front scan retries deduplicated','catalog image and metadata round-trip'],test_data:'rolled back'},null,2));
+  console.log(JSON.stringify({ok:true,tables,hypertable:'sensor_readings',checks:['sensor write','product and donation write','duplicate donation prevented','unusable audit preserves inventory','front scan retries deduplicated','catalog image and metadata round-trip','reward requires verification and approval','reward payout claim deduplicated'],test_data:'rolled back'},null,2));
 }catch{await client.query('ROLLBACK');console.error('Database verification failed; credentials were not printed.');process.exitCode=1;}finally{client.release();await pool.end();}

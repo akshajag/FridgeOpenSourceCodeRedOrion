@@ -3,6 +3,8 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   seedWorld,
+  seedRescues,
+  advanceRescue,
   refill,
   type CommunityWorld,
   type Refill,
@@ -16,6 +18,13 @@ export async function readWorld(): Promise<CommunityWorld> {
     const world = JSON.parse(
       await readFile(filename, "utf8"),
     ) as CommunityWorld;
+    if (!world.rescues) {
+      world.rescues = seedRescues();
+      await writeFile(filename + ".rescues.tmp", JSON.stringify(world), {
+        mode: 0o600,
+      });
+      await rename(filename + ".rescues.tmp", filename);
+    }
     return {
       ...world,
       version: 2,
@@ -30,7 +39,10 @@ export async function readWorld(): Promise<CommunityWorld> {
     };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    return seedWorld();
+    const world = { ...seedWorld(), rescues: seedRescues() };
+    await mkdir(directory, { recursive: true });
+    await writeFile(filename, JSON.stringify(world), { mode: 0o600 });
+    return world;
   }
 }
 export function recordRefill(event: Refill): Promise<CommunityWorld> {
@@ -54,6 +66,21 @@ export function recordMission(
   const task = queue.then(async () => {
     const next = setMission(await readWorld(), userId, fridgeId, join);
     await mkdir(directory, { recursive: true });
+    await writeFile(filename + ".tmp", JSON.stringify(next), { mode: 0o600 });
+    await rename(filename + ".tmp", filename);
+    return next;
+  });
+  queue = task.catch(() => undefined);
+  return task;
+}
+
+export function recordRescue(
+  userId: string,
+  id: string,
+  action: "pickup" | "deliver",
+): Promise<CommunityWorld> {
+  const task = queue.then(async () => {
+    const next = advanceRescue(await readWorld(), userId, id, action);
     await writeFile(filename + ".tmp", JSON.stringify(next), { mode: 0o600 });
     await rename(filename + ".tmp", filename);
     return next;

@@ -100,3 +100,17 @@ test("mission enrollment is isolated by account and retries are idempotent", asy
   );
   assert.deepEqual(before.memberships, {});
 });
+
+test('rescue missions require enrollment and pickup before delivery, and remain demo only',async()=>{
+ const {seedRescues,advanceRescue,setMission}=await import('./model.ts');
+ let world={...seedWorld(),rescues:seedRescues()};
+ assert.throws(()=>advanceRescue(world,'alice','rescue-meals','pickup'),/Join/);
+ world=setMission(world,'alice','rescue-meals',true);
+ assert.throws(()=>advanceRescue(world,'alice','rescue-meals','deliver'),/pickup/);
+ world=advanceRescue(world,'alice','rescue-meals','pickup');
+ world=setMission(world,'bob','rescue-meals',true);
+ assert.throws(()=>advanceRescue(world,'bob','rescue-meals','deliver'),/Another/);
+ world=advanceRescue(world,'alice','rescue-meals','deliver');
+ assert.equal(world.rescues[0].stage,'delivered');assert.equal(world.demo,true);
+ assert.equal(world.fridges[0].stock,seedWorld().fridges[0].stock);
+});

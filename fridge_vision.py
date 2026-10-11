@@ -33,10 +33,10 @@ log = logging.getLogger("fridge.vision")
 # Tried in order; each model has its own per-minute quota. Item recognition is
 # the harder task so it gets the strongest model first, and date reading starts
 # on a different one so the two steps of a donation don't share a quota.
-# gemini-3.8-flash reads items best but the free tier allows it only 20
-# requests a DAY, so it is the reserve, not the default.
-ITEM_MODELS = ["gemini-3.1-flash-lite", "gemini-2.5-flash"]
-EXPIRY_MODELS = ["gemini-3.1-flash-lite", "gemini-2.5-flash"]
+# Prefer the lighter model; use the current Flash model if it is unavailable.
+# Quotas are account/model dependent; do not assume an exact daily allowance.
+ITEM_MODELS = ["gemini-3.1-flash-lite", "gemini-3.8-flash"]
+EXPIRY_MODELS = ["gemini-3.1-flash-lite", "gemini-3.8-flash"]
 RATE_LIMIT_COOLDOWN_S = 30.0  # used when the error does not say how long to wait
 
 # The agent's tool call times out at 20 s; leave room for one last request.
@@ -128,7 +128,7 @@ Do not guess, and do not include image links."""
 
 # Shelf audits run all day, so they use the lighter models and leave the
 # stronger ones' small daily allowance for donors standing at the fridge.
-AUDIT_MODELS = ["gemini-3.1-flash-lite", "gemini-2.5-flash"]
+AUDIT_MODELS = ["gemini-3.1-flash-lite", "gemini-3.8-flash"]
 
 AUDIT_PROMPT = """\
 This picture comes from the second camera of a community food-donation fridge. Your job is simply to look for \

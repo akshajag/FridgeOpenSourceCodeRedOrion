@@ -4,6 +4,7 @@ import {
   readWorld,
   recordRefill,
   recordMission,
+  recordRescue,
 } from "@/lib/community/storage";
 import { z } from "zod";
 export const runtime = "nodejs";
@@ -88,17 +89,17 @@ export async function PATCH(request: Request) {
   if (!session)
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
   const parsed = z
-    .object({ fridgeId: z.string().max(60), join: z.boolean() })
+    .object({ fridgeId: z.string().max(60), join: z.boolean().optional(), action: z.enum(["pickup","deliver"]).optional() }).refine(v=>typeof v.join === "boolean" || !!v.action)
     .safeParse(await request.json().catch(() => null));
   if (!parsed.success)
     return NextResponse.json({ error: "Invalid mission." }, { status: 400 });
   try {
     return NextResponse.json(
       await visibleWorld(
-        await recordMission(
+        parsed.data.action ? await recordRescue(session.userId, parsed.data.fridgeId, parsed.data.action) : await recordMission(
           session.userId,
           parsed.data.fridgeId,
-          parsed.data.join,
+          parsed.data.join!,
         ),
       ),
       { headers: { "cache-control": "no-store" } },

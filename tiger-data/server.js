@@ -121,6 +121,25 @@ app.get('/fridges/:id/details',async(req,res)=>{
  res.json({fridge:info.rows[0]??null,products:products.rows,donations:proposals.rows});
 });
 app.get('/fridges/:id/sensors',async(req,res)=>res.json((await pool.query('SELECT * FROM fridge.sensor_readings WHERE fridge_id=$1 ORDER BY captured_at DESC LIMIT 100',[fridge.parse(req.params.id)])).rows));
+// Private service endpoints; browser routes supply the authenticated user ID.
+app.get('/rewards/users/:id',async(req,res)=>{
+ const id=z.string().min(1).max(200).parse(req.params.id);
+ const [wallet,rewards]=await Promise.all([pool.query('SELECT address FROM fridge.reward_wallets WHERE user_id=$1',[id]),pool.query('SELECT * FROM fridge.rewards WHERE user_id=$1 ORDER BY created_at DESC LIMIT 100',[id])]);
+ res.set('Cache-Control','no-store');res.json({walletAddress:wallet.rows[0]?.address??null,rewards:rewards.rows});
+});
+app.put('/rewards/users/:id/wallet',async(req,res)=>{
+ const id=z.string().min(1).max(200).parse(req.params.id), address=z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/).nullable().parse(req.body.address);
+ await pool.query('INSERT INTO fridge.reward_wallets(user_id,address) VALUES($1,$2) ON CONFLICT(user_id) DO UPDATE SET address=EXCLUDED.address,updated_at=now()',[id,address]);res.json({saved:true});
+});
+app.post('/rewards/claim',async(req,res)=>{
+ const b=z.object({id:uuid,organization_id:z.string().min(1).max(200)}).parse(req.body);
+ const result=await pool.query("UPDATE fridge.rewards r SET status='processing',recipient_address=w.address FROM fridge.reward_wallets w WHERE r.id=$1 AND r.organization_id=$2 AND r.user_id=w.user_id AND w.address IS NOT NULL AND r.status='approved' AND r.verified_at IS NOT NULL AND r.approved_at IS NOT NULL RETURNING r.*",[b.id,b.organization_id]);
+ if(!result.rowCount)return res.status(409).json({error:'Reward needs receiver verification, approval and a saved wallet, or is already claimed.'});res.json(result.rows[0]);
+});
+app.post('/rewards/finish',async(req,res)=>{
+ const b=z.object({id:uuid,status:z.enum(['paid','uncertain']),signature:z.string().max(120).nullable()}).parse(req.body);
+ const result=await pool.query("UPDATE fridge.rewards SET status=$2,signature=$3 WHERE id=$1 AND status='processing' RETURNING id",[b.id,b.status,b.signature]);res.json({saved:result.rowCount===1});
+});
 app.use((error,_req,res,_next)=>{if(error instanceof z.ZodError)return res.status(400).json({error:'invalid_input',fields:error.issues.map(i=>i.path.join('.'))});if(error.code==='METRICS_WINDOW_TOO_LARGE')return res.status(422).json({error:'reduce_metrics_window'});if(error.type==='entity.too.large')return res.status(413).json({error:'payload_too_large'});res.status(500).json({error:'data_operation_failed'});});
 const server=app.listen(Number(process.env.DATA_PORT||3200),'127.0.0.1',()=>console.log('Fridge data API: http://127.0.0.1:'+(process.env.DATA_PORT||3200)));
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(async()=>{await pool.end();process.exit(0);}));

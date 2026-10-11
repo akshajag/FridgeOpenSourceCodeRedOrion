@@ -30,7 +30,7 @@ export function isValidSolanaAddress(value: string): boolean {
   return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value.trim());
 }
 
-export function WalletPanel({ userId, walletAddress, actions }: { userId: string; walletAddress?: string; actions: FridgeyActions }) {
+export function WalletPanel({ userId, walletAddress, actions }: { userId: string; walletAddress?: string; actions: Pick<FridgeyActions, "setWalletAddress"> }) {
   const hasPhantom = useSyncExternalStore(noopSubscribe, () => typeof window !== "undefined" && Boolean(window.solana?.isPhantom), () => false);
   const [manual, setManual] = useState("");
   const [error, setError] = useState<string | undefined>();

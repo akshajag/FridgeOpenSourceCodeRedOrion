@@ -32,13 +32,13 @@ import fridge_voice_agent as voice
 
 log = logging.getLogger("fridge.ui")
 
-BG = "#0f1419"
-PANEL = "#18212b"
-TEXT = "#f2f5f7"
-MUTED = "#8b98a5"
-ACCENT = "#4ade80"
+BG = "#f7f8f3"
+PANEL = "#eef2ec"
+TEXT = "#233c31"
+MUTED = "#637569"
+ACCENT = "#38624c"
 WARN = "#fbbf24"
-FONT = "Segoe UI"
+FONT = "Helvetica"
 MAX_CAMERA_INDEX = 3  # C cycles through 0..3
 VIDEO_INTERVAL_MS = 66  # ~15 fps preview
 
@@ -165,10 +165,19 @@ class FridgeUI:
                 log.debug("Could not enable DPI awareness: %s", exc)
 
         self.root = tk.Tk()
-        self.root.title("Nourish - Smart Food Bank Fridge")
+        self.root.title("Nourish - Fridge donation station")
+        if sys.platform == "darwin":
+            from AppKit import NSApplication, NSApplicationActivationPolicyRegular
+            from Foundation import NSProcessInfo
+            NSProcessInfo.processInfo().setProcessName_("Nourish")
+            native_app = NSApplication.sharedApplication()
+            native_app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
+            native_app.activateIgnoringOtherApps_(True)
         self.root.configure(bg=BG)
         dpi_scale = self.root.winfo_fpixels("1i") / 96.0
-        self.root.geometry(f"{int((1280 if shelf_camera else 980) * dpi_scale)}x{int(860 * dpi_scale)}")
+        window_width = min(int((1280 if shelf_camera else 980) * dpi_scale), self.root.winfo_screenwidth() - 60)
+        window_height = min(int(860 * dpi_scale), self.root.winfo_screenheight() - 100)
+        self.root.geometry(f"{window_width}x{window_height}")
         self.root.minsize(int(640 * dpi_scale), int(560 * dpi_scale))
 
         header = tk.Frame(self.root, bg=BG)
@@ -182,9 +191,14 @@ class FridgeUI:
         self.donation_status = tk.Label(header, text="", font=(FONT, 12, "bold"), fg=ACCENT, bg=BG)
         self.donation_status.pack(side="right", padx=(0, 18))
 
+        tk.Button(header, text="Finish / next donor", command=self._next_donor,
+                  font=(FONT, 11), bg=PANEL, fg=TEXT).pack(side="right", padx=12)
+
         # Result of the latest shelf audit (empty until an inventory camera is configured).
         self.inventory = tk.Label(self.root, text="", font=(FONT, 10), fg=MUTED, bg=BG, anchor="w", justify="left")
         self.inventory.pack(fill="x", padx=20, pady=(0, 6))
+        if shelf_camera is None:
+            self.inventory.configure(text="Shelf camera disconnected — reconnect Logitech and restart Nourish to enable shelf verification.", fg=WARN)
         self.inventory.bind("<Configure>", lambda event: self.inventory.configure(wraplength=max(200, event.width - 10)))
 
         self.sensor_status = tk.Label(self.root, text="Connecting sensors…", font=(FONT, 10), fg=MUTED, bg=BG, anchor="w", justify="left", wraplength=900)
@@ -270,7 +284,19 @@ class FridgeUI:
         self._agent_thread.start()
         self.root.after(VIDEO_INTERVAL_MS, self._tick_video)
         self.root.after(50, self._tick_events)
+        self.root.after(5000, lambda: log.info(
+            "Desktop ready: window=%s front_frame=%s shelf_frame=%s mirrored_front=%s",
+            self.root.winfo_viewable(), self.camera.get_frame() is not None,
+            self.shelf_camera is not None and self.shelf_camera.get_frame() is not None,
+            self.camera.mirror_horizontal))
         self.root.mainloop()
+
+    def _next_donor(self) -> None:
+        """End the current voice session; the existing kiosk loop resets and restarts it."""
+        conversation = self.agent._conversation
+        if conversation is not None:
+            threading.Thread(target=conversation.end_session, daemon=True).start()
+            self.status.configure(text="Preparing next donor…")
 
     def close(self) -> None:
         if self._closing:
@@ -478,7 +504,11 @@ def main() -> int:
     args = parser.parse_args()
     from fridge_camera_devices import named_camera
     args.camera = named_camera(os.getenv('FRIDGE_FRONT_CAMERA_NAME'), args.camera)
-    args.inventory_camera = named_camera(os.getenv('FRIDGE_SHELF_CAMERA_NAME'), args.inventory_camera)
+    try:
+        args.inventory_camera = named_camera(os.getenv('FRIDGE_SHELF_CAMERA_NAME'), args.inventory_camera)
+    except RuntimeError as exc:
+        print(f'Shelf camera disconnected: {exc}', flush=True)
+        args.inventory_camera = None
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     for stream in (sys.stdout, sys.stderr):
@@ -545,7 +575,7 @@ def main() -> int:
     elif args.inventory_camera is not None:
         # Held open for a live preview; it never drifts onto the donor camera.
         shelf_camera = Camera(args.inventory_camera, auto_select=False, exclude=args.camera)
-    if args.inventory_camera != args.camera:
+    if shelf_camera is not None:
         # The log (what was scanned in) is kept even with one camera; the
         # recurring check only runs when there is a shelf camera to look through.
         auditor = InventoryAuditor(

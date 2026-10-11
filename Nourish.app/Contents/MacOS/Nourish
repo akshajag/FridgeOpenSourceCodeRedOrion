@@ -1,0 +1,5 @@
+#!/bin/zsh
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+cd "${0:A:h}/../../.." || exit 1
+mkdir -p runtime
+exec .venv/bin/python run_fridge.py --voice >> runtime/desktop-camera.log 2>&1

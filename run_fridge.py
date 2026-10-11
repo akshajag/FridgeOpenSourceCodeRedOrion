@@ -19,6 +19,15 @@ def main():
     parser.add_argument('--configure-agent',action='store_true',help='Create/update the ElevenLabs agent tools before starting voice')
     args,extra=parser.parse_known_args()
     args.voice = args.voice or args.mvp
+    camera_lock = None
+    if not args.data_only and sys.platform == "darwin":
+        import fcntl
+        (ROOT / "runtime").mkdir(exist_ok=True)
+        camera_lock = open(ROOT / "runtime" / "camera-desktop.lock", "a")
+        try:
+            fcntl.flock(camera_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise SystemExit("Nourish is already running. Use its existing window instead of opening the cameras twice.")
     load_dotenv(ROOT/'.env')
     if args.voice and not os.getenv('ELEVENLABS_API_KEY'):
         raise SystemExit('Enter ELEVENLABS_API_KEY privately in .env before running --voice.')

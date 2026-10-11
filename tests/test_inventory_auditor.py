@@ -20,3 +20,10 @@ class AuditorTests(unittest.TestCase):
         auditor.audit_now()
         auditor.audit_now()
         self.assertEqual(model.audit_shelves.call_count,2)
+
+    def test_visible_inventory_does_not_repeat_duplicate_ledger_matches(self):
+        auditor,model=self.make()
+        model.audit_shelves.return_value={'image_usable':True,'expected':[], 'unexpected':[],
+            'visible_items':[{'name':'Red Bull Zero','count':1},{'name':'Red Bull Apple','count':1}]}
+        self.assertEqual(auditor.audit_now()['observed_items'],[
+            {'name':'Red Bull Zero','count':1},{'name':'Red Bull Apple','count':1}])

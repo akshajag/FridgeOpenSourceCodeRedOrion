@@ -77,7 +77,7 @@ class FridgeWebUI:
                 except Exception:return self.send(400,{'error':'Invalid request'})
                 if self.path=='/audit':
                     if ui.auditor is None:return self.send(503,{'error':'Shelf auditor unavailable'})
-                    threading.Thread(target=ui.auditor.check_now,daemon=True).start()
+                    ui.auditor.audit_soon()
                     return self.send(200,{'queued':True})
                 if self.path=='/begin':
                     identity=body.get('identity')

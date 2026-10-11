@@ -8,8 +8,11 @@ def camera_names():
     if sys.platform != 'darwin':
         return []
     import AVFoundation
-    return [str(device.localizedName()) for device in
-            AVFoundation.AVCaptureDevice.devicesWithMediaType_(AVFoundation.AVMediaTypeVideo)]
+    devices = list(AVFoundation.AVCaptureDevice.devicesWithMediaType_(AVFoundation.AVMediaTypeVideo))
+    devices += list(AVFoundation.AVCaptureDevice.devicesWithMediaType_(AVFoundation.AVMediaTypeMuxed))
+    # OpenCV AVFoundation sorts by uniqueID, not discovery order.
+    devices.sort(key=lambda device: str(device.uniqueID()))
+    return [str(device.localizedName()) for device in devices]
 
 def named_camera(name, fallback):
     if not name:

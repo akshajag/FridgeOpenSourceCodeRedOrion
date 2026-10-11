@@ -212,6 +212,14 @@ class InventoryAuditor:
                 new_baseline.append({"name": name, "count": count})
                 observed_items.append({"name": name, "count": count})
 
+        # Physical shelf counts are independent of duplicate donation ledger rows.
+        if isinstance(result.get("visible_items"), list):
+            observed_items = [
+                {"name": str(row.get("name") or "").strip(), "count": max(0, int(row.get("count") or 0))}
+                for row in result["visible_items"]
+                if str(row.get("name") or "").strip() and int(row.get("count") or 0) > 0
+            ]
+
         # What the camera saw is the baseline from here on: each difference is reported once.
         with self._lock:
             added_meanwhile = [item for item in self.expected if item["name"].lower() not in {e["name"].lower() for e in expected}]

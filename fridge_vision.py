@@ -141,16 +141,18 @@ Items that were scanned in (name, count):
 1. image_usable: true whenever anything at all can be made out. Set it to false ONLY if the picture is \
 completely black, completely blank, or so blurred that nothing can be recognised, and say why in image_problem.
 2. expected: for EVERY item in the list above, how many you can see (seen_count). Keep each name exactly as given.
-   Match by what kind of thing it is, generously. The same product often looks different from one picture to \
-the next: another brand, label design, size, bottle shape or angle. If "water" was scanned in and you see a \
-bottle of water of any brand, that is the item. A can of cola counts for "Coke"; a box of oat cereal counts for \
-"Cheerios cereal". Only report 0 when nothing of that kind is in the picture. Use null only when you truly \
-cannot tell, for example because it would be hidden behind something.
+   Match visible labels to the actual product and flavour; never count Apple Edition as Zero. Do not infer
+   a package size you cannot read. Allocate each physical item to at most ONE expected row. If the log has
+   duplicate or ambiguous product names, do not count the same can repeatedly; choose the closest matching row
+   and mention ambiguous ledger entries in the summary. Use null when occlusion prevents a reliable count.
 3. unexpected: food or drink you can see that is not any kind of item in the list above, with a count. Do not \
 list something here that you already counted as a match in step 2.
 4. spill_detected: true if there is spilled liquid, leaked or broken packaging, loose food or a visible mess. \
 Describe it in spill_description (what and where).
-5. summary: one plain sentence describing the food and drink in the picture."""
+5. visible_items: an independent inventory of ALL visible food and drinks, grouped by actual product/variant,
+   with name and count. Count every physical package ONCE, regardless of duplicate donation-log rows.
+   Include products even if they were never donated. Return an empty array when no food is visible.
+6. summary: one plain sentence describing the food and drink in the picture."""
 
 AUDIT_SCHEMA = {
     "type": "OBJECT",
@@ -167,6 +169,12 @@ AUDIT_SCHEMA = {
                 },
                 "required": ["name"],
             },
+        },
+        "visible_items": {
+            "type": "ARRAY",
+            "items": {"type": "OBJECT", "properties": {
+                "name": {"type": "STRING"}, "count": {"type": "INTEGER"}},
+                "required": ["name", "count"]},
         },
         "unexpected": {
             "type": "ARRAY",

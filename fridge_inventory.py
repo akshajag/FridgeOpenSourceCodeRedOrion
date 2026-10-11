@@ -30,7 +30,7 @@ import logging
 import sys
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -62,8 +62,10 @@ class InventoryAuditor:
         on_report: Optional[Callable[[dict], None]] = None,
         interval_s: float = AUDIT_INTERVAL_S,
         capture: Optional[Callable[[], Optional[np.ndarray]]] = None,
+        expected_provider=None,
     ):
         """`capture` replaces the webcam grab (tests, or a camera you already hold open)."""
+        self.expected_provider = expected_provider
         self.camera_index = camera_index
         self.interval_s = interval_s
         self._gemini = gemini
@@ -140,7 +142,7 @@ class InventoryAuditor:
     # -- one audit -------------------------------------------------------------
     def audit_now(self) -> dict:
         """Take one picture and report. Never raises for camera or Gemini trouble."""
-        started = datetime.now()
+        started = datetime.now(timezone.utc)
         report = {
             "time": started.isoformat(timespec="seconds"),
             "status": "",  # ok | discrepancy | unchanged | unusable | unavailable
@@ -152,6 +154,15 @@ class InventoryAuditor:
             "summary": "",
             "snapshot": "",
         }
+        if self.expected_provider is not None:
+            try:
+                items = self.expected_provider()
+                with self._lock:
+                    if items != self.expected:
+                        self._ledger_dirty = True
+                    self.expected = items
+            except Exception:
+                return self._finish(report, "unavailable", "Recorded inventory unavailable; shelf check deferred.")
         frame = self._capture()
         if frame is None:
             return self._finish(report, "unusable", f"Shelf camera {self.camera_index} gave no picture.")
@@ -205,7 +216,9 @@ class InventoryAuditor:
         # What the camera saw is the baseline from here on: each difference is reported once.
         with self._lock:
             added_meanwhile = [item for item in self.expected if item["name"].lower() not in {e["name"].lower() for e in expected}]
-            self.expected = new_baseline + added_meanwhile
+            if self.expected_provider is None:
+                self.expected = new_baseline + added_meanwhile
+            report["observed_items"] = new_baseline
             self._ledger_dirty = bool(added_meanwhile)
             self._last_analysed = small
             self._last_analysed_at = time.monotonic()

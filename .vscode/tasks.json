@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Fridge: hardware + vision test",
+      "type": "shell",
+      "command": ".venv/bin/python run_fridge.py",
+      "problemMatcher": []
+    },
+    {
+      "label": "Fridge: voice + cameras + hardware",
+      "type": "shell",
+      "command": ".venv/bin/python run_fridge.py --voice",
+      "problemMatcher": []
+    }
+  ]
+}

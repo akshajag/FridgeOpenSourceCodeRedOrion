@@ -26,6 +26,7 @@ import numpy as np
 from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
 from PIL import Image, ImageTk
+from fridge_data import FridgeData, condition_summary
 
 import fridge_voice_agent as voice
 
@@ -180,11 +181,14 @@ class FridgeUI:
         self.inventory.pack(fill="x", padx=20, pady=(0, 6))
         self.inventory.bind("<Configure>", lambda event: self.inventory.configure(wraplength=max(200, event.width - 10)))
 
+        self.sensor_status = tk.Label(self.root, text="Connecting sensors…", font=(FONT, 10), fg=MUTED, bg=BG, anchor="w", justify="left", wraplength=900)
+        self.sensor_status.pack(fill="x", padx=20, pady=(0, 6))
+
         # The inventory log: what has been scanned in, and so what the shelf camera looks for.
         if auditor is not None:
             log_row = tk.Frame(self.root, bg=BG)
             log_row.pack(fill="x", padx=20, pady=(0, 6))
-            for label, action in (("Check shelf now", self._check_shelf), ("Clear log", self._clear_log)):
+            for label, action in (("Check shelf now", self._check_shelf),):
                 tk.Button(
                     log_row, text=label, font=(FONT, 9), bg=PANEL, fg=TEXT, activebackground=ACCENT, relief="flat",
                     padx=10, pady=2, command=action,
@@ -391,6 +395,8 @@ class FridgeUI:
                 if self.vision is not None:
                     self.vision.product_photo = None
                 self._show_photo(None)
+        elif role == "sensors":
+            self.sensor_status.configure(text=text)
         elif role in ("inventory", "inventory_alert"):
             self.inventory.configure(text=text, fg=WARN if role == "inventory_alert" else MUTED)
         elif role == "donation":
@@ -475,6 +481,12 @@ def main() -> int:
         echo_guard=args.echo_guard,
         gate_rms=args.gate_rms,
     )
+    data=FridgeData()
+    def store_donation(record):
+        products=record.get('products') or []
+        details=products[0] if len(products)==1 else {}
+        data.confirm_donation(record['items'],record['item_count'],details)
+    agent.set_donation_store(store_donation)
     camera = Camera(args.camera, exclude=args.inventory_camera)
     # On-device models do the scanning, through the same frames the window
     # shows. Gemini double-checks them, and takes over for things they cannot make out.
@@ -513,6 +525,7 @@ def main() -> int:
             args.inventory_camera if shelf_camera else args.camera,
             gemini=backup,
             interval_s=args.audit_interval,
+            expected_provider=lambda: [{"name": r["canonical_name"], "count": int(r["recorded_quantity"])} for r in data.inventory() if r["recorded_quantity"] > 0],
             # With one camera, "Check shelf now" looks at whatever the donor camera shows.
             capture=(shelf_camera or camera).get_frame,
         )
@@ -525,9 +538,11 @@ def main() -> int:
             stamp = report["time"][11:16]
             alert = report["status"] == "discrepancy"
             window._events.put(("inventory_alert" if alert else "inventory", f"Shelf check {stamp}:  {report['headline']}"))
+            try:data.save_audit(report)
+            except Exception as exc:window._events.put(('inventory_alert',f'Audit was not saved: {exc}'))
             if report["status"] in ("ok", "discrepancy"):
                 # Nourish learns what is inside (and about a spill) as silent context.
-                inside = ", ".join(f"{item['count']} x {item['name']}" for item in report["expected_now"]) or "nothing"
+                inside = ", ".join(f"{item['count']} x {item['name']}" for item in report.get("observed_items", report["expected_now"])) or "nothing"
                 spill = f" There is a spill or mess inside: {report['spill']}." if report["spill"] else ""
                 agent.update_inventory(f"Shelf camera at {stamp}: {report['summary'] or inside} Counted: {inside}.{spill}")
 
@@ -536,7 +551,26 @@ def main() -> int:
             auditor.start()  # first check now, then every --audit-interval seconds
         if backup is None:
             log.warning("Shelf audits need Gemini to recognise what is on the shelves; without it they only detect changes.")
-    window.run()
+    sensor_stop=threading.Event()
+    def poll_conditions():
+        previous=set()
+        while not sensor_stop.is_set():
+            try:
+                conditions=data.conditions()
+                summary=condition_summary(conditions)
+                agent.update_conditions(summary)
+                window._events.put(('sensors',summary))
+                active={item['key'] for item in conditions['alerts']}
+                for item in conditions['alerts']:
+                    if item['key'] not in previous:agent.announce(f"{item['label']}: please check the fridge. This is a monitoring alert, not a food safety diagnosis.")
+                previous=active
+            except Exception:
+                agent.update_conditions('Sensor monitoring is unavailable; do not infer normal or safe conditions.')
+                window._events.put(('sensors','Sensor data unavailable. Check the data API and Arduino.'))
+            sensor_stop.wait(2)
+    threading.Thread(target=poll_conditions,daemon=True,name='voice-sensor-monitor').start()
+    try:window.run()
+    finally:sensor_stop.set()
     return 0
 
 

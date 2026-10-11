@@ -19,6 +19,7 @@ import re
 import sys
 import threading
 import time
+import uuid
 import tkinter as tk
 from typing import Callable, Optional
 
@@ -29,6 +30,7 @@ from PIL import Image, ImageTk
 
 import fridge_voice_agent as voice
 from fridge_local_vision import LocalVision
+from fridge_data import FridgeData, condition_summary
 from fridge_ui import ACCENT, BG, FONT, MAX_CAMERA_INDEX, MUTED, PANEL, TEXT, VIDEO_INTERVAL_MS, WARN, Camera
 
 log = logging.getLogger("fridge.testbench")
@@ -46,6 +48,12 @@ class TestBench:
         shelf_camera: Optional[Camera] = None,
     ):
         self.auditor = auditor
+        self.data = FridgeData()
+        if self.auditor is not None:
+            self.auditor.expected_provider = lambda: [{"name": r["canonical_name"], "count": int(r["recorded_quantity"])} for r in self.data.inventory() if r["recorded_quantity"] > 0]
+        self._donation_id = str(uuid.uuid4())
+        self._sensor_updates = queue.Queue()
+        self._sensor_stop = threading.Event()
         self.shelf_camera = shelf_camera
         self._shelf_photo = None
         # The item the last scan found, waiting for "Add to log": (name, count) or None.
@@ -72,10 +80,10 @@ class TestBench:
             except Exception:
                 pass
         self.root = tk.Tk()
-        self.root.title("Nourish test bench (no ElevenLabs)")
+        self.root.title("Nourish · Hardware + Vision Test Bench")
         self.root.configure(bg=BG)
         scale = self.root.winfo_fpixels("1i") / 96.0
-        self.root.geometry(f"{int(1280 * scale)}x{int(860 * scale)}")
+        self.root.geometry(f"{min(int(1280 * scale),self.root.winfo_screenwidth()-60)}x{min(int(860 * scale),self.root.winfo_screenheight()-100)}")
         self._scale = scale
 
         # Background results from the vision module arrive on its threads.
@@ -115,8 +123,8 @@ class TestBench:
         section("SHELF CAMERA  (checks the log against the shelves)")
         button("Show what is in the log", self._show_log)
         button("Run shelf audit now", self._run_audit)
-        button("Add typed item to log  ('2 x beans')", self._add_expected)
-        button("Clear the log", self._clear_log)
+        button("Confirm typed donation  ('2 x beans')", self._add_expected)
+        button("Open full sensor monitor", self._open_sensor_monitor)
         section("AUDIO")
         button("Play test tone on speaker", self._test_speaker)
         button("Measure mic level  (3 s)", self._test_mic)
@@ -141,8 +149,8 @@ class TestBench:
         )
         self.item_label.pack(fill="x")
         self.add_button = tk.Button(
-            middle, text="Add to log", font=(FONT, 11, "bold"), bg=ACCENT, fg="#06210f", activebackground=ACCENT,
-            disabledforeground="#4b5b52", relief="flat", padx=14, pady=4, state="disabled", command=self._add_scanned,
+            middle, text="Confirm placed donation", font=(FONT, 11, "bold"), bg=ACCENT, fg="#06210f", activebackground=ACCENT,
+            disabledforeground="#4b5b52", relief="flat", padx=14, pady=4, state="disabled", command=lambda:self._run('Confirm placed donation',self._add_scanned),
         )
         self.add_button.pack(anchor="w", pady=(6, 6))
         self.ledger_label = tk.Label(
@@ -151,6 +159,8 @@ class TestBench:
         self.ledger_label.pack(fill="x")
         middle.bind("<Configure>", lambda event: [w.configure(wraplength=max(200, event.width - 20)) for w in (self.item_label, self.ledger_label)])
 
+        self.sensor_label=tk.Label(self.root,text='Connecting to Tiger Data sensors…',font=(FONT,10),bg=PANEL,fg=TEXT,anchor='w',justify='left',wraplength=850,padx=10,pady=8)
+        self.sensor_label.pack(side='top',fill='x',padx=16,pady=(10,0))
         videos = tk.Frame(self.root, bg=BG)
         videos.pack(fill="both", expand=True, padx=16, pady=(14, 0))
         videos.columnconfigure(0, weight=1, uniform="cam")
@@ -172,6 +182,8 @@ class TestBench:
         self.root.protocol("WM_DELETE_WINDOW", self.close)
         self._say("Loading the on-device models...", "note")
         threading.Thread(target=self._warm_up, daemon=True).start()
+        if self.auditor is not None:
+            self.auditor._on_report=self._save_audit
 
     # -- features ------------------------------------------------------------
     def _scan_item(self) -> None:
@@ -245,7 +257,10 @@ class TestBench:
         count, _, name = text.partition("x")
         if not (count.strip().isdigit() and name.strip()):
             raise ValueError("type it as:  2 x canned black beans")
+        self.data.confirm_donation(name.strip(),int(count),operation_id=self._donation_id)
+        self._donation_id=str(uuid.uuid4())
         self.auditor.add_expected(name.strip(), int(count))
+        self._say('Confirmed donation saved in Tiger Data.', 'note')
         self._say(f"log: {self._ledger_text()}")
 
     def _show_log(self) -> None:
@@ -272,9 +287,12 @@ class TestBench:
         if self._item is None:
             return
         name, count = self._item
+        details=self.vision.last_details or {'catalog':self.vision.last_product or {}}
+        self.data.confirm_donation(name,count,details,operation_id=self._donation_id)
+        self._donation_id=str(uuid.uuid4())
         self.auditor.add_expected(name, count)
         self._item = None  # one click, one entry: scan again to add another
-        self._say(f"\n> Added to log: {count} x {name}", "head")
+        self._say(f"\n> Saved confirmed donation to Tiger Data: {count} x {name}", "head")
         self._say(f"log: {self._ledger_text()}", "note")
 
     def _ledger_text(self) -> str:
@@ -322,6 +340,7 @@ class TestBench:
             self._item = (name, count) if name else None
 
     def _run_audit(self) -> None:
+        self._sync_inventory()
         looking_for = [dict(item) for item in self.auditor.expected]
         self._say(f"checking the shelf camera for: {self._ledger_text()}", "note")
         report = self.auditor.audit_now()
@@ -442,14 +461,46 @@ class TestBench:
             self.shelf_camera.start()
         self.root.after(VIDEO_INTERVAL_MS, self._tick_video)
         self.root.after(60, self._tick_log)
+        threading.Thread(target=self._poll_sensors,daemon=True,name='tiger-monitor').start()
+        self.root.after(200,self._tick_sensors)
         self.root.mainloop()
 
     def close(self) -> None:
         self._closing = True
+        self._sensor_stop.set()
+        if self.auditor is not None:self.auditor.stop()
         self.camera.stop()
         if self.shelf_camera is not None:
             self.shelf_camera.stop()
         self.root.destroy()
+
+    def _open_sensor_monitor(self):
+        import webbrowser
+        webbrowser.open(self.data.base_url+'/monitor')
+
+    def _sync_inventory(self):
+        items=self.data.inventory()
+        with self.auditor._lock:
+            self.auditor.expected=[{'name':r['canonical_name'],'count':r['recorded_quantity']} for r in items if r['recorded_quantity']>0]
+
+    def _save_audit(self,report):
+        try:
+            saved=self.data.save_audit(report)
+            if saved:self._say('Shelf observation saved in Tiger Data; recorded stock was not changed.','note')
+        except Exception as exc:self._say(f'Shelf observation NOT saved: {exc}','bad')
+
+    def _poll_sensors(self):
+        while not self._sensor_stop.is_set():
+            try:self._sensor_updates.put(condition_summary(self.data.conditions()))
+            except Exception as exc:self._sensor_updates.put('Sensor data unavailable: '+str(exc))
+            self._sensor_stop.wait(2)
+
+    def _tick_sensors(self):
+        if self._closing:return
+        try:
+            while True:self.sensor_label.configure(text=self._sensor_updates.get_nowait())
+        except queue.Empty:pass
+        self.root.after(200,self._tick_sensors)
 
     def _tick_video(self) -> None:
         if self._closing:
@@ -515,10 +566,10 @@ class TestBench:
             self._item_shown = state
             if self._item:
                 self.item_label.configure(text=f"Scanned item:  {self._item[1]} x {self._item[0]}")
-                self.add_button.configure(state="normal", text=f"Add to log  ({self._item[1]} x)")
+                self.add_button.configure(state="normal", text=f"Confirm placed donation  ({self._item[1]} x)")
             else:
                 self.item_label.configure(text="Scanned item: nothing yet (scan something, then add it to the log)")
-                self.add_button.configure(state="disabled", text="Add to log")
+                self.add_button.configure(state="disabled", text="Confirm placed donation")
             self.ledger_label.configure(text=f"Log (what the shelf camera checks for):  {state[1]}")
         photo = self.vision.product_photo
         if (photo[0] if photo else None) != self._catalog_stamp:

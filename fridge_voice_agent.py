@@ -151,7 +151,7 @@ You cannot see or feel anything yourself. Everything you know about the fridge a
 If you have no data for something, say you cannot check right now. Never invent inventory, expiry dates, temperatures or points.
 
 # Safety
-When unsure whether food is safe, do not accept it. If the sensors say the fridge is outside a food-safe range, say so honestly and suggest holding off on perishables. Do not give medical, allergy or dietary guarantees; point people to the label.
+When unsure whether food is safe, do not accept it. Sensor alerts indicate changing operating conditions, not proof of spoilage or safety. Never call monitoring coverage a food safety confidence score; ask an operator to check alerts. Do not give medical, allergy or dietary guarantees; point people to the label.
 
 Stay on the fridge, food and the donation. If asked about something else, answer in a few friendly words and steer back.
 """
@@ -683,6 +683,7 @@ class FridgeVoiceAgent:
         self._barcode_claimed = False
         self._utterance_listeners: list[Callable[[str], None]] = []
         self._donation_listeners: list[Callable[[dict], None]] = []
+        self._donation_store = None
         self._caption_listeners: list[Callable[[str, str], None]] = []
         self._checks = 0
         self._pending_products: list[dict] = []  # scanned since the last logged donation
@@ -822,6 +823,10 @@ class FridgeVoiceAgent:
     def on_donation_logged(self, listener: Callable[[dict], None]) -> None:
         """Subscribe to accepted donations (dashboard / leaderboard / TigerData)."""
         self._donation_listeners.append(listener)
+
+    def set_donation_store(self, store) -> None:
+        """Persist before acknowledging a donation or awarding demo points."""
+        self._donation_store=store
 
     # ======================================================================
     # Lifecycle
@@ -1101,7 +1106,15 @@ class FridgeVoiceAgent:
             "ts": datetime.now().isoformat(timespec="seconds"),
         }
         with self._lock:
-            record["products"], self._pending_products = self._pending_products, []
+            record["products"] = list(self._pending_products)
+        if self._donation_store is not None:
+            try:
+                self._donation_store(record)
+            except Exception:
+                self._caption('notice','Donation was not saved: check the database connection.')
+                return 'Donation was not saved. No points were awarded. Ask the operator to check the database connection before retrying.'
+        with self._lock:
+            self._pending_products = []
             self.donations.append(record)
             total = sum(donation["points"] for donation in self.donations)
         self.transcript.add("donation", items, **{k: v for k, v in record.items() if k not in ("items", "ts")})

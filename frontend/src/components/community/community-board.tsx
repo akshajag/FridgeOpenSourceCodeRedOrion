@@ -1,4 +1,5 @@
 "use client";
+import { WeeklySolanaRewards } from "./weekly-solana-rewards";
 import { MissionPickup } from "./mission-pickup";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -159,6 +160,7 @@ export function CommunityBoard({
           </span>
         }
       />
+      {leaderboardOnly && <WeeklySolanaRewards ranks={ranks} />}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sage-deep/60 bg-sage/40 px-5 py-4">
         <p className="max-w-2xl text-sm">
           Paper.io-inspired impact game: each crew starts at a home base. Every

@@ -14,3 +14,5 @@ On this Mac, `.env` binds the donor camera to **FaceTime HD Camera** and the she
 The Mac microphone is selected explicitly on this device. Echo protection pauses listening during Nourish playback and for 350 ms afterward; speak once it finishes, or use the typed input. Patient voice turn-taking leaves more room for reading dates. Sensor display still refreshes; contextual updates are throttled and spoken alerts are suppressed during an active donation.
 
 Shelf audits run every five minutes or via **Check shelf now**. Both webcams remain open. Camera frames older than two seconds are rejected. Gemini has two bounded model attempts, including a fallback after a timeout; a provider outage remains an explicit pending/error state, never fabricated inventory.
+
+Barcode decoding, mirrored date reading, storage checks and managed pickup instructions are in [PICKUP-INTEGRATION.md](PICKUP-INTEGRATION.md).

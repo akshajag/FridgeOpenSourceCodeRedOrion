@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+from fridge_storage_policy import storage_verdict
 import os
 import queue
 import sys
@@ -87,7 +88,7 @@ ECHO_TAIL_S = 0.35  # Bluetooth keeps playing ~200-300 ms after we stop feeding 
 GATE_HANGOVER_S = 0.6  # once the gate opens, keep it open across quiet syllables
 DEFAULT_GATE_RMS = 2500.0  # int16 RMS; tune on site with --mic-test
 
-BARCODE_RESULT_MIN_DELAY_S = 6.0  # time for the agent to finish asking for the barcode
+BARCODE_RESULT_MIN_DELAY_S = 0.0  # time for the agent to finish asking for the barcode
 
 MAX_RECONNECTS = 5
 
@@ -98,13 +99,10 @@ AGENT_NAME = "Smart Food Bank Fridge - Nourish"
 DEFAULT_VOICE_ID = "mUMf6FnFQ187d2RrRzft"  # Project custom voice; requires access in the ElevenLabs account.
 # Nourish starts in English and switches to whichever of these a person speaks.
 EXTRA_LANGUAGES = ["es", "fr", "zh", "hi", "ar", "vi", "pt", "ko", "ja", "de", "it", "ru", "tl"]
-FIRST_MESSAGE = (
-    "Hi there, welcome to the community fridge! I'm Nourish. "
-    "Are you dropping off food today, or picking something up?"
-)
+FIRST_MESSAGE = "Hi, I'm Nourish. Are you donating refrigerated food, or collecting as a food-bank employee or mission volunteer?"
 
 SYSTEM_PROMPT = """\
-You are Nourish, the voice of a community Smart Food Bank Fridge. You speak out loud through a small speaker to people standing at the fridge. You are warm, upbeat and brief, and you make giving feel like a small win.
+You are Nourish, the voice of a managed food-bank refrigerated unit. You speak out loud through a small speaker to people standing at the fridge. You are warm, upbeat and brief, and you make giving feel like a small win.
 
 # Language
 You start in English. If the person speaks another language, or asks for one, call language_detection to switch, then carry on entirely in their language: the questions, the food names and the dates. Everything you receive from tools and background updates is in English; translate it naturally as you speak and never read English tool text aloud to someone speaking another language. Product and brand names stay as they are.
@@ -119,10 +117,14 @@ You start in English. If the person speaks another language, or asks for one, ca
 - Only ever output the words you will speak. Never output your reasoning, plans or notes.
 
 # Who you meet
-Donors, who are dropping food off, and neighbors, who are picking food up. Find out which early, without making it awkward.
+This is a managed FOOD-BANK REFRIGERATED UNIT, not an unrestricted community fridge. Ask whether the person is donating, a food-bank employee collecting stock, or a volunteer collecting for a mission.
 
-## Neighbors picking up food
-This is the most important rule you have: taking food is exactly what the fridge is for. No questions about need, no limits, no judgment, and no reward or leaderboard discussion. Tell them what is in the fridge if they ask (use get_fridge_status), mention anything expiring soon so it gets eaten, and wish them well.
+## Employees and mission volunteers collecting food
+1. Ask for their username. Then ask for the six-digit pickup code generated while signed into the website's Missions page. A username or claimed role alone does NOT authenticate anyone. Call authenticate_pickup. Never ask for passwords. Do not tell them to take food until the tool confirms authentication and a before-shelf image is captured.
+2. If authorization fails, politely ask them to sign in and generate a new code. Do not invent an authenticated identity or grant access based on conversation. Only the tool determines employee versus volunteer role and mission.
+3. After successful authorization, ask which listed inventory product and how many units they need. Use the product_id and quantity from the tool's inventory list; do not invent IDs. Tell them to remove only that product/quantity, move their hands away, then explicitly confirm they have taken it.
+4. Call record_pickup with pickup_confirmed=true. It compares shelf images and records removal and mission pickup points only on verified success. If pending, retry the inside check; never award points in conversation. A volunteer earns 10 points once for this pickup leg, not for finished delivery. Employees get no mission points. Report only the points returned by the tool. Tell volunteers to take the food to the receiving desk; receiving confirmation is separate.
+5. Ask them to generate a new code for another pickup, or end_call when finished. All authorization resets between clients.
 
 ## Donors: walk them through it
 Follow these steps in order for every item. Do not skip steps.
@@ -130,11 +132,11 @@ The camera scans actively: it watches until something is held up, so you never w
 1. Say: "Please hold the item up to the camera." and call scan_donation_item right away, in that same turn.
 2. The scan result is raw: the words printed on the package (largest print first) and a count. Work out the food yourself from the brand and product words, ignoring weights, slogans and nutrition text. Then ask them to confirm, and be as specific as the scan allows: brand, variant or flavour, size, container and amount, in one question. For example: "Is that an 8.4 ounce can of Red Bull Zero, one can?" or "Is that Bush's black beans, the 15 ounce can, two cans?" Use only details the scan actually gave you. Never fill in a size, flavour or variant from memory, and if one is missing just leave it out. Then wait for their answer. If the words do not tell you what the food is, say what you can read and ask what it is. If the result says a barcode matched the product catalog, that is the exact product: use its name, brand and size as given.
    If the scan says the item may not belong in the fridge, or that it is not clear what it is: do not accept it and do not turn it away yet. Say what the camera sees, then ask the donor for more information about the product so that you can verify whether you can store it in the fridge. Put it in your own words each time and fit it to the item, for example "That looks like a pack of batteries to me. Can you tell me more about it, so I can check whether it can go in the fridge?" Never use the same sentence twice in a row. Then decide from what they tell you, using the acceptance rules in step 6: if it turns out to be sealed, in-date food or drink, carry on with the steps; if not, decline kindly and say why.
-   Barcode as the last resort: if the scan found nothing, the camera is not working, or you and the donor still cannot settle exactly which product it is, say "Can you turn the package so its barcode faces the camera?" and call scan_product_barcode right away, in that same turn. If that also finds nothing, or the barcode is not in the catalog, do not guess and do not try the barcode more than twice: ask the donor to tell you what it is and go by what they say. Loose produce like an apple has no barcode and does not need one.
-3. If they confirm, keep it. If they correct you, their word wins over the camera: repeat the corrected food and amount back once so they know you have it right.
+   If the donor asks to scan a barcode, immediately use scan_product_barcode, the local barcode decoder, without an item/Gemini scan first. Barcode as a fallback: if the scan found nothing, the camera is not working, or you and the donor still cannot settle exactly which product it is, say "Can you turn the package so its barcode faces the camera?" and call scan_product_barcode right away, in that same turn. If that also finds nothing, or the barcode is not in the catalog, do not guess and do not try the barcode more than twice: ask the donor to tell you what it is and go by what they say. Loose produce like an apple has no barcode and does not need one.
+3. Confirm the food and amount, then call check_storage_suitability. This unit accepts chilled food and beverages; it is NOT a pantry. Doritos, chips, crackers, cookies and dry snacks belong at the pantry collection, not inside. Frozen-only food needs a freezer. If the tool says no, explain and redirect. If unsure, ask them to read the storage instructions, read those back for confirmation, then call the tool with those instructions and donor_confirmed=true. Never bypass a no/unsure result by treating all food as acceptable.
 4. Ask: "Please tell me the expiration date, or hold the printed date in front of the camera so I can read it." Offer BOTH choices immediately. If they say a date, do not call scan_expiration_date: read the date back, ask them to confirm it, then call record_expiration_date with an unambiguous YYYY-MM-DD date and donor_confirmed=true. Ask for month/day/year if any part is missing or ambiguous; never guess. If they choose the camera, call scan_expiration_date. Never interrupt someone reading a date aloud with another scan request.
 5. If the camera returns a date, read it aloud and ask them to confirm it. If unreadable, immediately say "I can't read that clearly. You can tell me the date instead." Do not force another camera attempt. A donor-reported date is not a camera-verified date. If no date can be supplied, ask for operator review rather than inventing one.
-6. Decide whether to accept it: sealed or unopened, not past its date (the tool result tells you today's date), and not something the fridge cannot take (alcohol, opened packages, home-cooked food without a label and date, anything that smells or looks off). Those are the only restrictions; do not invent others. Any other sealed, in-date food or drink is welcome, including snacks, soda and energy drinks. If it is not okay, decline kindly, explain why in one sentence, and thank them for the thought. If it is okay, tell them to place it inside. Then ask whether they have actually placed it inside, and wait for an explicit answer. Confirming its name, quantity or expiration date does not confirm placement.
+6. Accept only after check_storage_suitability says yes, the food is unopened and in date, and there are no concerns about damaged packaging. Ask an operator if uncertain. Dry pantry snacks do not belong here even if sealed and in date. Then ask them to place it inside and explicitly confirm placement. Confirming its name or date does not confirm placement.
 7. Once they explicitly confirm placement, say "Let me check the inside camera" and call log_donation with placement_confirmed=true for this ONE product and its quantity. This tool compares before/after inside-camera pictures and only records if it verifies a new matching item. If it cannot verify, do not announce a donation: ask them to make the item visible on the shelf and tell you when ready; then retry log_donation without rescanning the donor camera. Once the tool reports saved, ask if they have another item; if so go back to step 1. Include barcode digits if read. Never bundle different products into one log call.
 8. Only after the tool reports the donation was saved, thank the donor. Do not offer or mention points, scores, rewards or a leaderboard.
 9. Ask if they have another item. If they say no, they are finished, cancel, or say goodbye, give a brief farewell and call end_call. Never stay in the same conversation for the next donor. Ending discards unfinished scans; it never records an unconfirmed donation. If they have more items, continue this session.
@@ -249,6 +251,9 @@ CLIENT_TOOL_SPECS = [
             "required": [],
         },
     },
+    {"type":"client", "name":"check_storage_suitability", "description":"Required before accepting any donation. Dry pantry food such as Doritos does not belong in this refrigerated unit. Unknown storage requires package instructions or operator review.", "expects_response":True,"response_timeout_secs":10,"parameters":{"type":"object","properties":{"item":{"type":"string"},"storage_instructions":{"type":"string"},"donor_confirmed":{"type":"boolean"}},"required":["item"]}},
+    {"type":"client", "name":"authenticate_pickup", "description":"Verify an employee/mission volunteer using their signed-in website username and short-lived six-digit pickup code; capture shelf BEFORE removal. Username or claimed role alone is not authentication.","expects_response":True,"response_timeout_secs":20,"parameters":{"type":"object","properties":{"username":{"type":"string"},"code":{"type":"string"}},"required":["username","code"]}},
+    {"type":"client", "name":"record_pickup", "description":"After authentication and explicit removal confirmation, verify matching shelf removal, reduce inventory, and award mission pickup points once. Do not claim completed delivery or SOL payment.","expects_response":True,"response_timeout_secs":40,"parameters":{"type":"object","properties":{"product_id":{"type":"string"},"quantity":{"type":"integer"},"pickup_confirmed":{"type":"boolean"}},"required":["product_id","quantity","pickup_confirmed"]}},
     {
         "type": "client", "name": "record_expiration_date",
         "description": "Save the expiration date spoken by the donor after reading it back and receiving confirmation. Never guess an ambiguous or missing month/day/year. This records donor-reported evidence, not camera evidence.",
@@ -263,7 +268,7 @@ CLIENT_TOOL_SPECS = [
         "name": "log_donation",
         "description": (
             "Record only after the donor explicitly confirms placement and the inside camera verifies it. "
-            "Returns whether the donation was saved. There are no points or rewards."
+            "Returns whether the donation was saved. Donations do not award mission pickup points."
         ),
         "expects_response": True,
         "response_timeout_secs": 40,
@@ -289,6 +294,24 @@ CLIENT_TOOL_SPECS = [
         },
     },
 ]
+
+
+# ElevenLabs requires a description for each client-tool input.
+_TOOL_PARAMETER_HELP = {
+    'item': 'Confirmed product name from the scan or donor.',
+    'storage_instructions': 'Storage instructions read from the package by the donor; do not invent them.',
+    'donor_confirmed': 'True only after the donor explicitly confirms your read-back.',
+    'username': 'Exact username displayed on the signed-in Missions pickup-code panel.',
+    'code': 'Six-digit pickup authorization code displayed to that signed-in user. Never a password.',
+    'product_id': 'Exact product UUID from the authenticated pickup inventory list.',
+    'quantity': 'Number of individual units collected, from 1 to 100.',
+    'pickup_confirmed': 'True only after the authenticated user explicitly says the requested food has been removed.'
+}
+for _spec in CLIENT_TOOL_SPECS:
+    if _spec.get('type') == 'client':
+        for _name, _property in _spec.get('parameters', {}).get('properties', {}).items():
+            if _name in _TOOL_PARAMETER_HELP:
+                _property.setdefault('description', _TOOL_PARAMETER_HELP[_name])
 
 
 def build_agent_config() -> dict:
@@ -713,6 +736,10 @@ class FridgeVoiceAgent:
         self._pending_products: list[dict] = []  # scanned since the last logged donation
         self._session_generation = 0
         self._expiration = None
+        self._storage_evidence = {}
+        self._pickup_auth = None
+        self._pickup_authenticator = None
+        self._pickup_store = None
         self._session_reset_listeners = []
         self._session_permission = None
 
@@ -869,6 +896,8 @@ class FridgeVoiceAgent:
             self._session_generation += 1
             self._pending_products.clear()
             self._expiration = None
+            self._storage_evidence = {}
+            self._pickup_auth = None
             self._checks = 0
             job = self._barcode_job
             self._barcode_job = None
@@ -1046,6 +1075,9 @@ class FridgeVoiceAgent:
         tools.register("scan_expiration_date", self._tool_scan_expiration_date)
         tools.register("log_donation", self._tool_log_donation)
         tools.register("record_expiration_date", self._tool_record_expiration_date)
+        tools.register("check_storage_suitability", self._tool_check_storage)
+        tools.register("authenticate_pickup", self._tool_authenticate_pickup)
+        tools.register("record_pickup", self._tool_record_pickup)
         return tools
 
     def _tool_get_fridge_status(self, params: dict) -> str:
@@ -1162,6 +1194,66 @@ class FridgeVoiceAgent:
             self._expiration = {"text": result, "source": "camera", "confirmed": False}
         return f"Date on the package: {result}. Ask the donor to confirm this reading. {today}"
 
+    def set_pickup_handlers(self, authenticate, store):
+        self._pickup_authenticator, self._pickup_store = authenticate, store
+
+    def _tool_check_storage(self, params):
+        item = str(params.get('item') or '').strip()
+        with self._lock:
+            details = dict(self._pending_products[-1] if self._pending_products else {})
+        label = str(params.get('storage_instructions') or '').strip()
+        if params.get('donor_confirmed') is True and label:
+            import re
+            if re.search(r'keep refrigerated|refrigerate|refrigerated storage', label, re.I):
+                self._storage_evidence = {'storage':'refrigerate', 'storage_source':'donor_reported_label', 'storage_label':label[:300]}
+        verdict, reason = storage_verdict(item, {**details, **self._storage_evidence})
+        self._caption('notice', reason)
+        return f'Storage decision: {verdict}. {reason}'
+
+    def _tool_authenticate_pickup(self, params):
+        if self._pickup_authenticator is None:
+            return 'Pickup authorization is unavailable. Ask the food-bank operator; do not take stock.'
+        username = str(params.get('username') or '').strip()
+        code = str(params.get('code') or '').replace(' ', '')
+        if not username or len(code) != 6 or not code.isdigit():
+            return 'Ask for the username and the six-digit code from the signed-in Missions page.'
+        try:
+            result = self._pickup_authenticator(username, code)
+        except Exception:
+            self._pickup_auth = None
+            return 'Not authorized. The username/code may be invalid, expired or the shelf camera is unavailable. Sign in and generate a new code; do not take food yet.'
+        self._pickup_auth = result
+        self._caption('notice', f"Authorized pickup: {result['username']}")
+        return 'Authenticated pickup: ' + json.dumps(result)
+
+    def _tool_record_pickup(self, params):
+        if self._pickup_auth is None or self._pickup_store is None:
+            return 'Not recorded. Authenticate with a username and pickup code first.'
+        if params.get('pickup_confirmed') is not True:
+            return 'Ask the user to confirm that they have removed the requested food before recording.'
+        product_id = str(params.get('product_id') or '')
+        try:
+            count = int(params.get('quantity'))
+        except (TypeError, ValueError):
+            return 'Ask for the number of individual units.'
+        if type(params.get('quantity')) is bool or not 1 <= count <= 100:
+            return 'Use a quantity from 1 to 100.'
+        product = next((p for p in self._pickup_auth['inventory'] if p['product_id'] == product_id), None)
+        if not product or count > product['recorded_quantity']:
+            return 'Not recorded. Select a listed inventory product and an available quantity.'
+        self._caption('status', 'Checking pickup on shelf camera...')
+        try:
+            result = self._pickup_store(self._pickup_auth, product, count)
+        except PlacementPending as exc:
+            return str(exc)
+        except Exception:
+            return 'Pickup was not saved. No points confirmed. Ask the operator to check the data connection, then retry.'
+        finally:
+            self._caption('status', 'Live')
+        self._pickup_auth = None
+        self._caption('donation', f"Pickup saved · {result['points_awarded']} mission points")
+        return 'Pickup saved. ' + json.dumps(result) + ' This records pickup only, not completed delivery. End this pickup session.'
+
     def _tool_record_expiration_date(self, params: dict) -> str:
         if params.get("donor_confirmed") is not True:
             return "Date not saved. Read it back and ask the donor to confirm first."
@@ -1182,6 +1274,13 @@ class FridgeVoiceAgent:
     def _tool_log_donation(self, params: dict) -> str:
         if params.get("placement_confirmed") is not True:
             return "Not recorded. Ask the donor to place the items inside and explicitly confirm that they have done so before recording."
+        with self._lock:
+            latest = self._pending_products[-1] if self._pending_products else {}
+        latest = {**latest, **self._storage_evidence}
+        verdict, reason = storage_verdict(str(params.get('items') or ''), latest)
+        if verdict != 'yes':
+            self._caption('notice', reason)
+            return 'Not recorded. ' + reason
         items = str(params.get("items") or "").strip() or "unspecified items"
         try:
             count = max(1, int(float(params.get("item_count") or 1)))  # LLMs sometimes send "3" or 3.0
@@ -1198,6 +1297,7 @@ class FridgeVoiceAgent:
         with self._lock:
             record["products"] = list(self._pending_products)
             record["expiration"] = self._expiration
+            record["storage_evidence"] = dict(self._storage_evidence)
         if record["expiration"] and record["expiration"].get("date", "9999-12-31") < datetime.now().date().isoformat():
             return "Not recorded: the reported expiration date is in the past. Ask for operator review."
         if self._donation_store is not None:
@@ -1215,6 +1315,7 @@ class FridgeVoiceAgent:
         with self._lock:
             self._pending_products = []
             self._expiration = None
+            self._storage_evidence = {}
             self.donations.append(record)
         self.transcript.add("donation", items, **{k: v for k, v in record.items() if k not in ("items", "ts")})
         self._caption("product", "")

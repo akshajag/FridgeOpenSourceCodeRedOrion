@@ -506,7 +506,7 @@ def main() -> int:
         evidence = placement.verify(record["items"], record["item_count"])
         products=record.get('products') or []
         details=products[-1] if products else {}
-        details = {**details, 'placement_check': evidence, 'expiration': record.get('expiration')}
+        details = {**details, 'placement_check': evidence, 'expiration': record.get('expiration'), **(record.get('storage_evidence') or {})}
         data.confirm_donation(record['items'],record['item_count'],details,operation_id=placement.operation_id)
         placement.complete()
     agent.set_donation_store(store_donation)
@@ -559,6 +559,20 @@ def main() -> int:
         agent.on_donation_logged(auditor.add_donation)  # what was scanned in = what should be on the shelves
     from fridge_placement import PlacementGate
     placement = PlacementGate(shelf_camera.get_frame if shelf_camera else None, backup)
+    from fridge_placement import PickupGate
+    pickup_gate = PickupGate(shelf_camera.get_frame if shelf_camera else None, backup)
+    def authenticate_pickup(username, code):
+        result = data.authenticate_pickup(username, code)
+        pickup_gate.complete()
+        pickup_gate.begin()
+        placement.complete()
+        return result
+    def store_pickup(authorization, product, count):
+        evidence = pickup_gate.verify(product['canonical_name'], count)
+        result = data.complete_pickup(authorization['id'], product['product_id'], count, evidence)
+        pickup_gate.complete()
+        return result
+    agent.set_pickup_handlers(authenticate_pickup, store_pickup)
     def scan_with_before_frame(hint: str = ""):
         placement.begin()
         return vision.identify_item(hint)
@@ -570,6 +584,7 @@ def main() -> int:
         return vision.scan_barcode()
     def reset_camera_session():
         placement.complete()
+        pickup_gate.complete()
         vision.reset_session()
     agent.on_session_reset(reset_camera_session)
     agent.set_item_scanner(scan_with_before_frame)

@@ -2,6 +2,7 @@ import express from 'express';
 import {timingSafeEqual,randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {makePool} from './db.js';
+import {installPickups} from './pickups.js';
 import {fileURLToPath} from 'node:url';
 import {getThermalMetrics} from './thermal-query.js';
 import {existsSync,readFileSync} from 'node:fs';
@@ -140,6 +141,7 @@ app.post('/rewards/finish',async(req,res)=>{
  const b=z.object({id:uuid,status:z.enum(['paid','uncertain']),signature:z.string().max(120).nullable()}).parse(req.body);
  const result=await pool.query("UPDATE fridge.rewards SET status=$2,signature=$3 WHERE id=$1 AND status='processing' RETURNING id",[b.id,b.status,b.signature]);res.json({saved:result.rowCount===1});
 });
+installPickups(app,pool);
 app.use((error,_req,res,_next)=>{if(error instanceof z.ZodError)return res.status(400).json({error:'invalid_input',fields:error.issues.map(i=>i.path.join('.'))});if(error.code==='METRICS_WINDOW_TOO_LARGE')return res.status(422).json({error:'reduce_metrics_window'});if(error.type==='entity.too.large')return res.status(413).json({error:'payload_too_large'});res.status(500).json({error:'data_operation_failed'});});
 const server=app.listen(Number(process.env.DATA_PORT||3200),'127.0.0.1',()=>console.log('Fridge data API: http://127.0.0.1:'+(process.env.DATA_PORT||3200)));
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(async()=>{await pool.end();process.exit(0);}));

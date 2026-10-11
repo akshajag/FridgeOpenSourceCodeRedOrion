@@ -1,4 +1,5 @@
 "use client";
+import { MissionPickup } from "./mission-pickup";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock3, Truck, PackageCheck, Flag } from "lucide-react";
@@ -56,6 +57,7 @@ export function RescueMissions() {
           </span>
         }
       />
+      <MissionPickup />
       <div className="flex flex-wrap gap-2">
         {["all", "mine", "urgent"].map((f) => (
           <Button

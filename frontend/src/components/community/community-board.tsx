@@ -1,4 +1,5 @@
 "use client";
+import { MissionPickup } from "./mission-pickup";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -144,6 +145,7 @@ export function CommunityBoard({
   }));
   return (
     <div className="space-y-6">
+      {leaderboardOnly && <MissionPickup leaderboardOnly />}
       <PageHeader
         title={leaderboardOnly ? "Community leaderboard" : "Community map"}
         description={

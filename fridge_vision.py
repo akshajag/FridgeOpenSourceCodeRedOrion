@@ -72,11 +72,11 @@ You are the camera of a community food-donation fridge. Describe whatever is bei
 camera, as precisely as the picture and any label text allow. Ignore people, hands and the background. Set \
 item_visible to false only if nothing at all is being presented.
 
-First decide what it is and whether it belongs in a shared food fridge:
+First decide what it is and whether it belongs in this REFRIGERATED food-bank unit, not a pantry:
 - object_seen: what the thing is in a few plain words, e.g. "a can of energy drink", "a pack of AA batteries", \
 "a bottle of shampoo", "an opened bag of chips".
 - is_food: true only for food or drink meant for people.
-- fridge_ok: "yes" if it is sealed, ordinary food or drink that a community fridge can take. "no" if it clearly \
+- fridge_ok: "yes" only for unopened food suitable for chilled storage. Dry snacks such as Doritos, potato chips, crackers and cookies are "no": redirect to pantry storage. Frozen-only products require a freezer, not this unit. "no" also if it clearly \
 cannot go in: not food at all, medicine or supplements, alcohol, tobacco or vapes, pet food, cleaning or personal-care \
 products, or food that is visibly opened, leaking, mouldy or damaged. "unsure" if you cannot tell what it is, cannot \
 tell whether it is sealed, or it is home-made or unlabelled.
@@ -357,6 +357,19 @@ class GeminiVision:
             "item_match":{"type":"STRING","enum":["confirmed","different","uncertain"]},
             "reason":{"type":"STRING"}},"required":["image_usable","placed_inside","quantity_increased","added_count","item_match","reason"]}
         return self._ask_with_fallback(prompt,schema,after,AUDIT_MODELS,max_width=1280,extra_image=before)
+
+    def verify_pickup(self, after, before, item, count):
+        prompt = ("Fixed camera INSIDE a food-bank refrigerated unit. Image 1 AFTER collection, image 2 BEFORE. "
+                  f"Authorized requested product: {item!r}, exactly {count} individual units. "
+                  "Verify only if these matching units were visibly on the shelf BEFORE and are now removed. "
+                  "Compare exact brand/variant when specified. A moved, hidden or occluded item is uncertain, not removal. "
+                  "If the camera moved, image is dark, a hand blocks the view, or extra items disappear, return uncertain. "
+                  "Never infer removal from the user's statement.")
+        schema = {"type":"OBJECT","properties":{
+            "image_usable":{"type":"BOOLEAN"},"removed_from_shelf":{"type":"BOOLEAN"},
+            "removed_count":{"type":"INTEGER"},"item_match":{"type":"STRING","enum":["confirmed","different","uncertain"]},
+            "reason":{"type":"STRING"}},"required":["image_usable","removed_from_shelf","removed_count","item_match","reason"]}
+        return self._ask_with_fallback(prompt, schema, after, AUDIT_MODELS, max_width=1280, extra_image=before)
 
     def same_product(self, frame: np.ndarray, catalog_image: np.ndarray) -> Optional[bool]:
         """One request: does the catalog photo show the item in the frame? None when it cannot tell."""

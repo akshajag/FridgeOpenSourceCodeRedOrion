@@ -11,6 +11,7 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import quote, urlparse
 from dotenv import dotenv_values
+from fridge_storage_policy import storage_verdict
 
 class DataUnavailable(RuntimeError):
     pass
@@ -54,6 +55,9 @@ class FridgeData:
         details=details or {}
         if details.get('is_food') is False or details.get('fridge_ok') in ('no','unsure'):
             raise ValueError('This scan needs review before recording a donation.')
+        verdict, reason = storage_verdict(name, details)
+        if verdict != 'yes':
+            raise ValueError(reason)
         count=int(count)
         if not name.strip() or not 1<=count<=10000:
             raise ValueError('A product name and valid quantity are required.')
@@ -81,6 +85,13 @@ class FridgeData:
             'quantity':count,'identification_method':'barcode' if barcode else 'gemini' if details else 'manual',
             'certainty':'unknown','details':{'confirmation':'operator_confirmed_placement','vision_details':details}})
         return self.request('POST','/donations/confirm',{'proposal_id':operation_id})
+
+    def authenticate_pickup(self, username, code):
+        return self.request('POST', '/pickups/authenticate', {'username':username, 'code':code, 'fridge_id':self.fridge_id})
+
+    def complete_pickup(self, authorization_id, product_id, quantity, evidence):
+        return self.request('POST', '/pickups/complete', {'authorization_id':authorization_id, 'product_id':product_id,
+            'quantity':quantity, 'pickup_confirmed':True, 'evidence':evidence})
 
     def start_audit_sync(self):
         """Retry persisted scan/audit uploads without holding either camera."""

@@ -893,8 +893,17 @@ class LocalVision:
     # -- scanner hooks -------------------------------------------------------
     def identify_item(self, hint: str = "") -> str:
         """Watch the webcam until a food item is held up; describe it for the agent."""
-        self.warm_up()
         self.product_photo = None  # the previous item's picture must not linger over this one
+        # Read actual bars before loading OCR/YOLO or calling Gemini.
+        frame = self._get_frame()
+        found = decode_barcode(frame) if frame is not None else None
+        if found:
+            self._publish_overlay([], [], barcode=found)
+            match, note = self._lookup_barcode(found[0])
+            if match:
+                return self._enrich_item(frame, hint, match + " Ask how many individual items there are.", [], catalog_product=self.last_product)
+            return note.strip()
+        self.warm_up()
         if self.prefer_gemini and self._fallback is not None:
             answer = self._identify_with_gemini(hint)
             if answer is not None:
@@ -1029,6 +1038,11 @@ class LocalVision:
                 view = cv2.resize(frame[y0 : y0 + height // 2, x0 : x0 + width // 2], None, fx=2, fy=2)
                 offset, scale = (x0, y0), 0.5
             lines = self._read_text(view, max_width=1280)
+            if not self._find_date(lines):
+                reverse_lines = self._read_text(cv2.flip(view, 1), max_width=1280)
+                if self._find_date(reverse_lines):
+                    w = view.shape[1]
+                    lines = [(text, score, (w-box[2], box[1], w-box[0], box[3])) for text, score, box in reverse_lines]
             lines = [(text, score, _shift(box, offset, scale)) for text, score, box in lines]
             self._publish_overlay(lines, [])
 
@@ -1046,12 +1060,14 @@ class LocalVision:
                 previous = None
 
         if self._fallback is not None:
-            for attempt in range(2):
-                frame = self._get_frame()
-                if frame is None: break
+            frame = self._get_frame()
+            if frame is not None:
+                # The configured front source is mirrored for the display;
+                # give Gemini normal text and keep within the tool deadline.
+                if os.getenv('FRIDGE_FRONT_MIRROR', '0') == '1':
+                    frame = cv2.flip(frame, 1)
                 answer = self._ask_fallback(lambda: self._fallback.read_expiry_frame(frame, item))
                 if answer: return answer
-                if attempt == 0: time.sleep(0.6)
         return ""
 
     def scan_barcode(self) -> str:
@@ -1063,41 +1079,22 @@ class LocalVision:
         """
         started = time.monotonic()
         self.product_photo = None
-        previous_printed: Optional[str] = None
-        # The agent's tool call gives up at 20 s. When Gemini is there to take
-        # over, stop looking for bars early enough to leave it room.
-        budget = min(SCAN_TIMEOUT_S, BARCODE_SCAN_WITH_BACKUP_S) if self._fallback is not None else SCAN_TIMEOUT_S
-        while time.monotonic() - started < budget:
+        # This route is barcode-only: never block frame polling on OCR or an LLM.
+        while time.monotonic() - started < SCAN_TIMEOUT_S:
             frame = self._get_frame()
             if frame is None:
-                time.sleep(0.1)
+                time.sleep(0.05)
                 continue
             found = decode_barcode(frame)
-            if not found and self._load_ocr_quietly():
-                # Second way in: OCR the number printed under the bars.
-                printed = barcode_digits_from_text(self._read_text(frame, max_width=1280))
-                if printed and printed[0] == previous_printed:
-                    found = printed
-                previous_printed = printed[0] if printed else None
             self._publish_overlay([], [], barcode=found)
             if found:
                 match, note = self._lookup_barcode(found[0])
                 if match:
-                    # Same follow-up as an item scan: details and the catalog
-                    # photo for THIS barcode, fetched in the background.
                     self._enrich_item(frame, "", match, [], catalog_product=self.last_product)
                     return match
-                # Read, but not a catalogued product: let Gemini look at the pack instead.
-                return f"{note.strip()} {self._gemini_catalog_note(frame)}".strip()
+                return note.strip() + " Barcode decoding succeeded; ask the donor for the product name. Do not guess a catalog match."
             time.sleep(0.05)
-        last_frame = self._get_frame()
-        via_gemini = self._gemini_catalog_note(last_frame) if last_frame is not None else ""
-        if via_gemini:
-            return f"No barcode could be read. {via_gemini}"
-        return (
-            "No barcode could be read. Ask the donor to hold the barcode flat and still, about a forearm's "
-            "length from the camera, in good light, then try once more; otherwise ask them what the product is."
-        )
+        return "No barcode read. Hold the printed bars flat toward the camera in good light. Try again, or tell me the product name. No Gemini request was made."
 
     def _gemini_catalog_note(self, frame: np.ndarray) -> str:
         """Barcode route failed: try the Gemini scan -> catalog route on the same frame. "" if that fails too."""
@@ -1323,6 +1320,25 @@ class LocalVision:
         The combined details go to `on_product`, and a one-line summary goes
         to the agent so it can be specific and can question a mismatch.
         """
+        if catalog_product is not None:
+            product = dict(catalog_product)
+            self.last_details = {
+                "product_name": product.get("name"), "brand": product.get("brand"),
+                "size": product.get("size"), "catalog": product,
+                "catalog_match_method": "barcode", "catalog_photo": None,
+                "identification_source": "local_zxing_barcode", "label_text": "",
+            }
+            if self._on_product is not None:
+                self._on_product(dict(self.last_details))
+            generation = self._session_generation
+            def photo_only():
+                url = product.get("image_url")
+                if url:
+                    image = self._download_photo(url)
+                    if image is not None and generation == self._session_generation:
+                        self.product_photo = (time.monotonic(), image, "Catalog image — matched by barcode")
+            threading.Thread(target=photo_only, name="barcode-photo", daemon=True).start()
+            return local_answer
         if self._on_second_opinion is None and self._on_product is None:
             return local_answer
         label_text = " | ".join(dict.fromkeys(text for text, _score, _box in label))

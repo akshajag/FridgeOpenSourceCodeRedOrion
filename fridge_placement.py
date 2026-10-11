@@ -51,3 +51,22 @@ class PlacementGate:
     def complete(self):
         self.before=None
         self.operation_id=None
+
+class PickupGate(PlacementGate):
+    """Compare fixed-camera shelf evidence for an authenticated collection."""
+    def verify(self, item, count):
+        if self.before is None or self.capture is None or self.vision is None:
+            raise PlacementPending('The shelf camera is not ready. Authenticate before taking food, then retry.')
+        after = self.capture()
+        if after is None:
+            raise PlacementPending('No fresh shelf image. Pickup is pending; no points or stock changes.')
+        try:
+            result = self.vision.verify_pickup(after, self.before, item, int(count))
+        except Exception as exc:
+            log.warning('Pickup check failed: %s', exc)
+            raise PlacementPending('The inside-camera check is unavailable. No points or stock changes; retry the pickup check without restarting.') from None
+        if (result.get('image_usable') is not True or result.get('removed_from_shelf') is not True
+            or result.get('item_match') != 'confirmed' or type(result.get('removed_count')) is not int
+            or result['removed_count'] != int(count)):
+            raise PlacementPending('Pickup not verified. ' + str(result.get('reason') or 'The requested removal is not visible.')[:250] + ' Keep the camera fixed and retry; no points were awarded.')
+        return result

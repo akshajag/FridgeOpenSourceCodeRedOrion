@@ -66,9 +66,25 @@ app.get('/fridges/:id/thermal',async(req,res)=>{
 });
 const url=z.string().url().refine(s=>s.startsWith('https://'),'Use HTTPS').nullable().optional();
 const product=z.object({id:uuid.optional(),canonical_name:z.string().min(1).max(200),barcode:z.string().regex(/^\d{8,14}$/).nullable().optional(),brand:z.string().max(200).nullable().optional(),variant:z.string().max(200).nullable().optional(),package_size:z.string().max(100).nullable().optional(),display_image_url:url,image_source_url:url,match_method:z.enum(['barcode','visual','manual','generic']),metadata:json.default({})});
+app.get('/fridges',async(_req,res)=>res.json((await pool.query('SELECT id,name,created_at FROM fridge.fridges ORDER BY name')).rows));
+app.post('/inventory/scans',async(req,res)=>{
+  const scan=z.object({id:uuid,fridge_id:fridge,captured_at:timestamp,result:json}).parse(req.body);
+  const saved=await pool.query('INSERT INTO fridge.item_scans(id,fridge_id,captured_at,result) VALUES($1,$2,$3,$4) ON CONFLICT(id) DO NOTHING RETURNING id',[scan.id,scan.fridge_id,scan.captured_at,scan.result]);
+  res.status(saved.rowCount?201:200).json({id:scan.id,stored:true,inventory_changed:false});
+});
+app.get('/fridges/:id/catalog',async(req,res)=>{
+ const id=fridge.parse(req.params.id);
+ const [info,items,audits,scans]=await Promise.all([
+  pool.query('SELECT id,name FROM fridge.fridges WHERE id=$1',[id]),
+  pool.query(`SELECT b.*,p.brand,p.package_size,p.image_source_url,p.match_method,p.metadata FROM fridge.inventory_balances b JOIN fridge.products p ON p.id=b.product_id WHERE b.fridge_id=$1 AND b.recorded_quantity>0 ORDER BY b.canonical_name`,[id]),
+  pool.query('SELECT id,captured_at,image_quality,model,result,comparison FROM fridge.camera_audits WHERE fridge_id=$1 ORDER BY captured_at DESC LIMIT 12',[id]),
+  pool.query('SELECT id,captured_at,result FROM fridge.item_scans WHERE fridge_id=$1 ORDER BY captured_at DESC LIMIT 12',[id])]);
+ if(!info.rowCount)return res.status(404).json({error:'fridge_not_found'});
+ res.set('Cache-Control','no-store');res.json({fridge:info.rows[0],items:items.rows,audits:audits.rows,scans:scans.rows});
+});
 app.post('/products',async(req,res)=>{
   const p=product.parse(req.body);
-  const result=await pool.query(`INSERT INTO fridge.products(id,canonical_name,barcode,brand,variant,package_size,display_image_url,image_source_url,match_method,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(barcode) DO UPDATE SET canonical_name=EXCLUDED.canonical_name,brand=EXCLUDED.brand,variant=EXCLUDED.variant,package_size=EXCLUDED.package_size,display_image_url=COALESCE(EXCLUDED.display_image_url,fridge.products.display_image_url),image_source_url=COALESCE(EXCLUDED.image_source_url,fridge.products.image_source_url),match_method=EXCLUDED.match_method,metadata=EXCLUDED.metadata RETURNING *`,[p.id||randomUUID(),p.canonical_name,p.barcode||null,p.brand,p.variant,p.package_size,p.display_image_url,p.image_source_url,p.match_method,p.metadata]);
+  const result=await pool.query(`INSERT INTO fridge.products(id,canonical_name,barcode,brand,variant,package_size,display_image_url,image_source_url,match_method,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ${p.barcode ? 'ON CONFLICT(barcode)' : 'ON CONFLICT(id)'} DO UPDATE SET canonical_name=EXCLUDED.canonical_name,brand=EXCLUDED.brand,variant=EXCLUDED.variant,package_size=EXCLUDED.package_size,display_image_url=COALESCE(EXCLUDED.display_image_url,fridge.products.display_image_url),image_source_url=COALESCE(EXCLUDED.image_source_url,fridge.products.image_source_url),match_method=EXCLUDED.match_method,metadata=EXCLUDED.metadata RETURNING *`,[p.id||randomUUID(),p.canonical_name,p.barcode||null,p.brand,p.variant,p.package_size,p.display_image_url,p.image_source_url,p.match_method,p.metadata]);
   res.status(201).json(result.rows[0]);
 });
 app.post('/donations/propose',async(req,res)=>{

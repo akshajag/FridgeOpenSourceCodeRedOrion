@@ -4,7 +4,7 @@ Database created: **foodbank-smart-fridge**, service `ym0p9v6xv2`, project `szwh
 
 ## What is ready
 
-- Tables in the `fridge` schema for fridges, timestamped sensor readings, products, donation proposals, inventory events and camera audits.
+- Tables in the `fridge` schema for fridges, timestamped sensor readings, products, donation proposals, inventory events, front-camera item scans and camera audits.
 - TimescaleDB sensor hypertable and five-minute sensor aggregation view.
 - Inventory balances computed from confirmed events. Camera audits are observations requiring review; they never blindly overwrite stock.
 - Local data API on `127.0.0.1:3200`, with a private bearer token for all data operations. `/health` only reports connectivity.
@@ -64,7 +64,11 @@ Use the data API from your **backend**, not by placing its bearer token in brows
 - `GET /fridges/orion-fridge-01/audits`: latest 100 observations.
 - `GET /fridges/orion-fridge-01/sensors`: latest 100 readings.
 
-The UI must fetch/update after successful calls, or the teammate must implement their existing subscription/polling mechanism. The data module does not implement ElevenLabs, Gemini calls, barcode scanning, camera scheduling, stock reconciliation, pickups, operator adjustments or object storage. It provides storage boundaries for those modules; do not claim those features are finished.
+The Python camera/voice app now uses these endpoints through `fridge_data.py`. Every identification is persisted in a local retry queue before upload; a confirmed donation adds stock once. Scheduled rear-camera checks (default 300 seconds) save all statuses, including failures, and re-analyze an unchanged view each interval. Retry uploads run every five seconds. Small shelf JPEG thumbnails are stored in the audit JSON; original snapshots remain private on the camera device. The frontend inventory page polls every five seconds. Pickups and automatic stock reconciliation are not implemented. See [Inventory integration](../INVENTORY-INTEGRATION.md).
+
+- `POST /inventory/scans`: UUID `id`, `fridge_id`, ISO `captured_at`, structured `result`; identification history only, no stock changes. Repeated IDs do not duplicate scans.
+- `GET /fridges`: registered real fridges.
+- `GET /fridges/:id/catalog`: recorded inventory with product image/source URLs and metadata, latest twelve shelf audits and front-camera identifications. This is a private backend endpoint; the frontend exposes a sanitized authenticated view.
 
 Schema supports pickup/adjustment events, but no HTTP endpoint yet exposes them. Before adding them, enforce stock policy and operator authentication; do not allow uncontrolled negative balances. Counts from rear vision may be partial and should be reconciled explicitly.
 

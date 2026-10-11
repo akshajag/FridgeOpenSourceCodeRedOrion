@@ -15,6 +15,14 @@ try{
   assert.equal((await client.query('SELECT recorded_quantity FROM fridge.inventory_balances WHERE product_id=$1',[pid])).rows[0].recorded_quantity,2);
   await client.query("INSERT INTO fridge.camera_audits(id,fridge_id,captured_at,image_quality,model,result) VALUES($1,'orion-fridge-01',now(),'unusable','verification-only','{}')",[audit]);
   assert.equal((await client.query('SELECT recorded_quantity FROM fridge.inventory_balances WHERE product_id=$1',[pid])).rows[0].recorded_quantity,2);
+  const scan=randomUUID();
+  for(let i=0;i<2;i++) await client.query("INSERT INTO fridge.item_scans(id,fridge_id,captured_at,result) VALUES($1,'orion-fridge-01',now(),$2) ON CONFLICT(id) DO NOTHING",[scan,JSON.stringify({stage:'identified_not_deposited',product:{product_name:'verification-only'}})]);
+  assert.equal(Number((await client.query('SELECT count(*) FROM fridge.item_scans WHERE id=$1',[scan])).rows[0].count),1);
+  await client.query("UPDATE fridge.products SET display_image_url='https://images.openfoodfacts.org/test.jpg',metadata=$2 WHERE id=$1",[pid,JSON.stringify({vision_details:{category:'Canned food'}})]);
+  const catalog=(await client.query('SELECT b.recorded_quantity,p.display_image_url,p.metadata FROM fridge.inventory_balances b JOIN fridge.products p ON p.id=b.product_id WHERE p.id=$1',[pid])).rows[0];
+  assert.equal(catalog.display_image_url,'https://images.openfoodfacts.org/test.jpg');
+  assert.equal(catalog.metadata.vision_details.category,'Canned food');
+  assert.equal(catalog.recorded_quantity,2);
   await client.query('ROLLBACK');
-  console.log(JSON.stringify({ok:true,tables,hypertable:'sensor_readings',checks:['sensor write','product and donation write','duplicate donation prevented','unusable audit preserves inventory'],test_data:'rolled back'},null,2));
+  console.log(JSON.stringify({ok:true,tables,hypertable:'sensor_readings',checks:['sensor write','product and donation write','duplicate donation prevented','unusable audit preserves inventory','front scan retries deduplicated','catalog image and metadata round-trip'],test_data:'rolled back'},null,2));
 }catch{await client.query('ROLLBACK');console.error('Database verification failed; credentials were not printed.');process.exitCode=1;}finally{client.release();await pool.end();}

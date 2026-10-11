@@ -49,6 +49,7 @@ class TestBench:
     ):
         self.auditor = auditor
         self.data = FridgeData()
+        self.data.start_audit_sync()
         if self.auditor is not None:
             self.auditor.expected_provider = lambda: [{"name": r["canonical_name"], "count": int(r["recorded_quantity"])} for r in self.data.inventory() if int(r["recorded_quantity"]) > 0]
         self._donation_id = str(uuid.uuid4())
@@ -426,6 +427,8 @@ class TestBench:
         self._lines.put((text, tag))
 
     def _on_product(self, details: dict) -> None:
+        try: self.data.save_scan(details)
+        except Exception: self._say('Front scan could not be queued; check the data configuration.', 'note')
         if details.get("fridge_ok") in ("no", "unsure") or details.get("is_food") is False:
             self._item = None  # nothing to add to the log
             self._say(f"CHECK THIS ITEM: {details.get('object_seen')} - {details.get('concern')}", "bad")
@@ -459,6 +462,7 @@ class TestBench:
         self.camera.start()
         if self.shelf_camera is not None:
             self.shelf_camera.start()
+            if self.auditor is not None: self.auditor.start()
         self.root.after(VIDEO_INTERVAL_MS, self._tick_video)
         self.root.after(60, self._tick_log)
         threading.Thread(target=self._poll_sensors,daemon=True,name='tiger-monitor').start()

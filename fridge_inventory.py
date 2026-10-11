@@ -42,14 +42,9 @@ log = logging.getLogger("fridge.inventory")
 AUDIT_INTERVAL_S = 300.0
 AUDIT_DIR = Path(__file__).with_name("audits")
 LEDGER_PATH = Path(__file__).with_name("inventory_ledger.json")
-# Gemini's free tier allows only a few dozen requests a day, and a fridge
-# nobody has touched looks the same as it did five minutes ago. A picture is
-# only sent for analysis when it differs from the last analysed one by more
-# than this fraction of its pixels, or when something was scanned in since.
+# Recheck at the configured interval even if the image is unchanged.
+# Manual checks within that interval can reuse the last observation.
 CHANGED_PIXEL_FRACTION = 0.03
-# ... but look properly at least this often even if nothing seems to move
-# (a slow leak changes few pixels at a time).
-FORCE_AUDIT_EVERY_S = 3600.0
 MIN_BRIGHTNESS = 18.0  # mean grey level below which the picture is "too dark to tell"
 CAMERA_WARMUP_S = 2.5  # webcams send black / badly exposed frames at first
 
@@ -176,7 +171,7 @@ class InventoryAuditor:
             dirty = self._ledger_dirty
             previous = self._last_analysed
         changed = previous is None or float(np.count_nonzero(cv2.absdiff(small, previous) > 25)) / small.size
-        overdue = time.monotonic() - self._last_analysed_at > FORCE_AUDIT_EVERY_S
+        overdue = time.monotonic() - self._last_analysed_at >= self.interval_s
         if previous is not None and changed < CHANGED_PIXEL_FRACTION and not dirty and not overdue:
             return self._finish(report, "unchanged", "The picture looks the same as at the last check.")
 
@@ -196,6 +191,7 @@ class InventoryAuditor:
         report["spill"] = str(result.get("spill_description") or "a spill or mess is visible") if result.get("spill_detected") else ""
         seen = {str(row.get("name") or "").lower(): row.get("seen_count") for row in result.get("expected") or []}
         new_baseline = []
+        observed_items = []
         for item in expected:
             count = seen.get(item["name"].lower())
             if count is None:
@@ -203,6 +199,7 @@ class InventoryAuditor:
                 new_baseline.append(item)
                 continue
             count = max(0, int(count))
+            observed_items.append({"name": item["name"], "count": count})
             if count < item["count"]:
                 report["missing"].append({"name": item["name"], "expected": item["count"], "seen": count})
             if count > 0:
@@ -212,13 +209,14 @@ class InventoryAuditor:
             if name:
                 report["unexpected"].append({"name": name, "count": count})
                 new_baseline.append({"name": name, "count": count})
+                observed_items.append({"name": name, "count": count})
 
         # What the camera saw is the baseline from here on: each difference is reported once.
         with self._lock:
             added_meanwhile = [item for item in self.expected if item["name"].lower() not in {e["name"].lower() for e in expected}]
             if self.expected_provider is None:
                 self.expected = new_baseline + added_meanwhile
-            report["observed_items"] = new_baseline
+            report["observed_items"] = observed_items
             self._ledger_dirty = bool(added_meanwhile)
             self._last_analysed = small
             self._last_analysed_at = time.monotonic()

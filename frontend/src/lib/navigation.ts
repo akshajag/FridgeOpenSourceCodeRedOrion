@@ -55,6 +55,11 @@ export const NAV: Record<
       },
       { href: "/dashboard/food-bank/network", label: "Network", icon: Network },
       {
+        href: "/dashboard/food-bank/inventory",
+        label: "Inside the fridges",
+        icon: Boxes,
+      },
+      {
         href: "/dashboard/food-bank/missions",
         label: "Rescue missions",
         icon: Flag,
@@ -121,6 +126,7 @@ export const NAV: Record<
         exact: true,
       },
       { href: "/dashboard/donor/find", label: "Community map", icon: Compass },
+      { href: "/dashboard/donor/inventory", label: "Inside the fridges", icon: Boxes },
       { href: "/dashboard/donor/missions", label: "Missions", icon: Flag },
       {
         href: "/dashboard/donor/leaderboard",

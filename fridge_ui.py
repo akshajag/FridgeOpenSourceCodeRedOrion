@@ -495,11 +495,12 @@ def main() -> int:
         gate_rms=args.gate_rms,
     )
     data=FridgeData()
+    data.start_audit_sync()
     placement = None
     def store_donation(record):
         evidence = placement.verify(record["items"], record["item_count"])
         products=record.get('products') or []
-        details=products[0] if len(products)==1 else {}
+        details=products[-1] if products else {}
         details = {**details, 'placement_check': evidence}
         data.confirm_donation(record['items'],record['item_count'],details,operation_id=placement.operation_id)
         placement.complete()
@@ -516,11 +517,15 @@ def main() -> int:
         backup = GeminiVision(camera.get_frame)
     # Three checks on the live video: OCR + YOLO answer at once, and Gemini
     # re-examines the same frame in the background and tells Nourish if it disagrees.
+    def track_product(details):
+        agent.record_product(details)
+        try: data.save_scan(details)
+        except Exception: log.warning('Front scan could not be queued; check the data configuration.')
     vision = LocalVision(
         camera.get_frame,
         fallback=backup,
         on_second_opinion=agent.report_second_opinion,
-        on_product=agent.record_product,  # brand / size / category / catalog entry for each item
+        on_product=track_product,  # brand / size / category / catalog entry for each item
         prefer_gemini=not args.local_first,  # Gemini names products best; the local models back it up
     )
     vision.warm_up_async()  # load the models while Nourish is still saying hello

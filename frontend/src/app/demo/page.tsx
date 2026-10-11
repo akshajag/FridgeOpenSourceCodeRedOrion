@@ -24,7 +24,7 @@ export default async function DemoPage({ searchParams }: { searchParams: Promise
           <div className="inline-flex items-center gap-1.5 rounded-md border border-amber/40 bg-amber-soft px-2 py-1 text-[12px] font-medium text-amber">
             <FlaskConical className="size-3.5" aria-hidden="true" /> Demonstration mode
           </div>
-          <h1 className="mt-4 font-display text-[34px] font-semibold leading-[1.05] tracking-tight md:text-[44px]">Walk through Fridgey as three people in one Houston neighborhood.</h1>
+          <h1 className="mt-4 font-display text-[34px] font-semibold leading-[1.05] tracking-tight md:text-[44px]">Walk through Nourish as three people in one Houston neighborhood.</h1>
           <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
             Demo mode uses a synthetic dataset stored in your browser. Nothing here is a real account, a real fridge, or a real transaction. Actions you take as one persona show up for the others, so you can follow a donation from mission to fridge shelf to leaderboard.
           </p>

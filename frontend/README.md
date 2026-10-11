@@ -1,8 +1,8 @@
-# fridgey.
+# Nourish
 
 **A smarter fridge for a more connected community.**
 
-Fridgey is an AI-powered community food-sharing platform connected to smart refrigerators. Food banks coordinate a network of community fridges, operators monitor the fridge they host, and donors bring food where it is needed and see it verified.
+Nourish is an AI-powered community food-sharing platform connected to smart refrigerators. Food banks coordinate a network of community fridges, operators monitor the fridge they host, and donors bring food where it is needed and see it verified.
 
 This repository is the web application: a cinematic 3D product tour, authentication and role onboarding, and three role-specific dashboards, all usable in a fully labeled **demo mode** without any API keys.
 

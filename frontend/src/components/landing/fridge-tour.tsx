@@ -203,7 +203,7 @@ export function FridgeTour({ clerkConfigured }: { clerkConfigured: boolean }) {
                 A smarter fridge for a more connected community.
               </h1>
               <p className="mt-4 max-w-md text-[15px] leading-relaxed text-ink-muted md:text-[16px]">
-                Fridgey monitors community refrigerators, recognizes what is inside, and connects donors with the food banks that need it. Scroll to open it.
+                Nourish monitors community refrigerators, recognizes what is inside, and connects donors with the food banks that need it. Scroll to open it.
               </p>
               <div className="pointer-events-auto mt-6 flex flex-wrap items-center gap-2">
                 <Button size="lg" onClick={() => jumpTo(1)} tabIndex={stage === 0 ? 0 : -1}>

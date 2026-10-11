@@ -11,12 +11,12 @@ export function StaticTour({ clerkConfigured }: { clerkConfigured: boolean }) {
   return (
     <div className="relative">
       <section className="relative min-h-[90vh] overflow-hidden">
-        <Image src="/images/render-kitchen-closed.webp" alt="Rendered Fridgey refrigerator in a kitchen" fill priority sizes="100vw" className="object-cover" />
+        <Image src="/images/render-kitchen-closed.webp" alt="Rendered Nourish refrigerator in a kitchen" fill priority sizes="100vw" className="object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-stone/95 via-stone/70 to-transparent" />
         <div className="relative mx-auto flex min-h-[90vh] max-w-[1400px] flex-col justify-center px-5 pt-20 md:px-8">
           <div className="max-w-xl">
             <h1 className="font-display text-[36px] font-semibold leading-[1.02] tracking-[-0.02em] sm:text-[48px] md:text-[60px]">A smarter fridge for a more connected community.</h1>
-            <p className="mt-4 max-w-md text-[15px] leading-relaxed text-ink-muted">Fridgey monitors community refrigerators, recognizes what is inside, and connects donors with the food banks that need it.</p>
+            <p className="mt-4 max-w-md text-[15px] leading-relaxed text-ink-muted">Nourish monitors community refrigerators, recognizes what is inside, and connects donors with the food banks that need it.</p>
             <p className="mt-2 text-[12px] text-ink-faint">3D tour unavailable in this browser; showing rendered stills.</p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Button asChild size="lg"><Link href="/demo">Explore the demo</Link></Button>

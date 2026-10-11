@@ -43,7 +43,7 @@ const KIT = [
   { name: "Air-quality sensor", role: "CO₂-equivalent in ppm; rises as produce spoils." },
   { name: "Moisture module", role: "Optional humidity sensing for produce-heavy fridges." },
   { name: "Speaker", role: "ElevenLabs voice for hands-free donor check-in." },
-  { name: "Arduino-compatible board", role: "Reads sensors, drives cameras, posts to the Fridgey API." },
+  { name: "Arduino-compatible board", role: "Reads sensors, drives cameras, posts to the Nourish API." },
 ];
 
 export default function LandingPage() {
@@ -68,7 +68,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-[1400px] px-5 py-20 md:px-8 md:py-28">
           <div className="max-w-2xl">
             <h2 className="font-display text-[30px] font-semibold leading-[1.05] tracking-tight md:text-[40px]">Three roles, one shared picture of the food.</h2>
-            <p className="mt-4 text-[15px] leading-relaxed text-ink-muted">Everyone in a Fridgey network works from the same inventory, the same sensor history, and the same verified donation record. What each person sees depends on what the fridge owner has agreed to share.</p>
+            <p className="mt-4 text-[15px] leading-relaxed text-ink-muted">Everyone in a Nourish network works from the same inventory, the same sensor history, and the same verified donation record. What each person sees depends on what the fridge owner has agreed to share.</p>
           </div>
           <div className="mt-12 grid overflow-hidden rounded-2xl border border-border bg-card md:grid-cols-3">
             {ROLES.map((r, i) => {
@@ -97,7 +97,7 @@ export default function LandingPage() {
           <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
             <div>
               <h2 className="font-display text-[30px] font-semibold leading-[1.05] tracking-tight md:text-[40px]">What is in the kit.</h2>
-              <p className="mt-4 text-[15px] leading-relaxed text-ink-muted">Fridgey retrofits an affordable refrigerator with off-the-shelf parts. Every component maps to something you can see in the dashboards.</p>
+              <p className="mt-4 text-[15px] leading-relaxed text-ink-muted">Nourish retrofits an affordable refrigerator with off-the-shelf parts. Every component maps to something you can see in the dashboards.</p>
               <dl className="mt-8 divide-y divide-border border-y border-border">
                 {KIT.map((k) => (
                   <div key={k.name} className="grid gap-1 py-3.5 sm:grid-cols-[200px_1fr] sm:gap-4">
@@ -109,7 +109,7 @@ export default function LandingPage() {
             </div>
             <div className="grid grid-cols-2 gap-3 self-start md:grid-cols-3 lg:grid-cols-2">
               <figure className="col-span-2 overflow-hidden rounded-xl border border-border md:col-span-3 lg:col-span-2">
-                <Image src="/images/render-kitchen-open.webp" alt="Rendered Fridgey refrigerator with both doors open, showing shelves of food" width={1600} height={900} className="h-auto w-full" sizes="(min-width: 1024px) 50vw, 100vw" />
+                <Image src="/images/render-kitchen-open.webp" alt="Rendered Nourish refrigerator with both doors open, showing shelves of food" width={1600} height={900} className="h-auto w-full" sizes="(min-width: 1024px) 50vw, 100vw" />
                 <figcaption className="px-4 py-2.5 text-[12px] text-ink-muted">Doors open. Rendered from the project&rsquo;s Blender model.</figcaption>
               </figure>
               <figure className="overflow-hidden rounded-xl border border-border">

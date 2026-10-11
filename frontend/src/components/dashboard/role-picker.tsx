@@ -16,7 +16,7 @@ import { toast } from "sonner";
 
 const ROLES: { id: Role; title: string; icon: React.ComponentType<{ className?: string }>; blurb: string; bullets: string[] }[] = [
   { id: "food_bank", title: "Food bank", icon: Building2, blurb: "You coordinate a network of community fridges for an organization.", bullets: ["See connected fridges and shared inventory", "Create rescue missions and community events", "Approve rewards for verified donations"] },
-  { id: "operator", title: "Personal fridge operator", icon: Refrigerator, blurb: "You host a Fridgey-equipped refrigerator and keep it running well.", bullets: ["Live temperature, humidity, and air-quality monitoring", "Confirm camera recognitions and manage inventory", "Approve which food banks can see your data"] },
+  { id: "operator", title: "Personal fridge operator", icon: Refrigerator, blurb: "You host a Nourish-equipped refrigerator and keep it running well.", bullets: ["Live temperature, humidity, and air-quality monitoring", "Confirm camera recognitions and manage inventory", "Approve which food banks can see your data"] },
   { id: "donor", title: "Donor", icon: HandHeart, blurb: "You bring food to nearby fridges and want it to count.", bullets: ["Find fridges and open missions near you", "Record donations and track verification", "Earn verified points and optional rewards"] },
 ];
 

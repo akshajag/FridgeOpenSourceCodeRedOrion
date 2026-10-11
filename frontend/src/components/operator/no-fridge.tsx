@@ -10,7 +10,7 @@ export function NoFridge({ title }: { title: string }) {
       <EmptyState
         icon={<Refrigerator />}
         title="No fridge registered to this account"
-        description="Your operator membership is not linked to a fridge yet. Register your Fridgey hardware kit to start receiving sensor data and inventory updates."
+        description="Your operator membership is not linked to a fridge yet. Register your Nourish hardware kit to start receiving sensor data and inventory updates."
       />
     </div>
   );

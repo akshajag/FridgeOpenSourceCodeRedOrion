@@ -1,5 +1,5 @@
 /**
- * Shared Fridgey domain types.
+ * Shared Nourish domain types.
  * These types are used by the demo data layer, the API routes, and the UI.
  * Keep them transport-agnostic: dates are ISO strings so they serialize cleanly.
  */

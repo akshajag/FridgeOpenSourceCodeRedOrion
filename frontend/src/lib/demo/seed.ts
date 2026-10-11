@@ -1,5 +1,5 @@
 /**
- * DEMO DATA — synthetic, internally consistent seed for Fridgey's demonstration mode.
+ * DEMO DATA — synthetic, internally consistent seed for Nourish's demonstration mode.
  * Every record here is fabricated for the hackathon demo. Dates are generated relative
  * to the moment the seed is created so the dataset always looks current.
  */
@@ -134,8 +134,8 @@ export function createSeed(now = new Date()): FridgeyDataset {
       capabilities: fullCaps,
       thresholds: baseThresholds,
       hours: "Open 24/7 · covered porch",
-      description: "Hosted outside a neighborhood café. Full Fridgey hardware kit with both cameras and the voice assistant.",
-      hardwareVersion: "Fridgey Kit v0.4 (dual camera, env sensor board)",
+      description: "Hosted outside a neighborhood café. Full Nourish hardware kit with both cameras and the voice assistant.",
+      hardwareVersion: "Nourish Kit v0.4 (dual camera, env sensor board)",
       createdAt: ago(90 * DAY),
     },
     {
@@ -153,7 +153,7 @@ export function createSeed(now = new Date()): FridgeyDataset {
       thresholds: { tempMinC: 1, tempMaxC: 5, airQualityMaxPpm: 1000 },
       hours: "6am–10pm",
       description: "Run by the park's community garden volunteers. No humidity sensor installed yet.",
-      hardwareVersion: "Fridgey Kit v0.3 (dual camera, temp + air quality)",
+      hardwareVersion: "Nourish Kit v0.3 (dual camera, temp + air quality)",
       createdAt: ago(130 * DAY),
     },
     {
@@ -171,7 +171,7 @@ export function createSeed(now = new Date()): FridgeyDataset {
       thresholds: baseThresholds,
       hours: "Open 24/7",
       description: "Sits next to the farmers market. Interior camera reconnects intermittently since last week.",
-      hardwareVersion: "Fridgey Kit v0.4 (dual camera, env sensor board)",
+      hardwareVersion: "Nourish Kit v0.4 (dual camera, env sensor board)",
       createdAt: ago(110 * DAY),
     },
     {
@@ -189,7 +189,7 @@ export function createSeed(now = new Date()): FridgeyDataset {
       thresholds: baseThresholds,
       hours: "Library hours · 9am–8pm",
       description: "Indoor unit inside the branch lobby. Speaker not installed to keep the library quiet.",
-      hardwareVersion: "Fridgey Kit v0.4 (dual camera, env sensor board, no speaker)",
+      hardwareVersion: "Nourish Kit v0.4 (dual camera, env sensor board, no speaker)",
       createdAt: ago(100 * DAY),
     },
     {
@@ -207,7 +207,7 @@ export function createSeed(now = new Date()): FridgeyDataset {
       thresholds: { tempMinC: 1, tempMaxC: 5 },
       hours: "5am–midnight",
       description: "Private location. Board lost Wi-Fi after a power cut last night; operator notified.",
-      hardwareVersion: "Fridgey Kit v0.2 (single camera, temp only)",
+      hardwareVersion: "Nourish Kit v0.2 (single camera, temp only)",
       createdAt: ago(70 * DAY),
     },
     {
@@ -225,7 +225,7 @@ export function createSeed(now = new Date()): FridgeyDataset {
       thresholds: baseThresholds,
       hours: "7am–9pm",
       description: "Newest unit in the network. Not yet connected to a food bank.",
-      hardwareVersion: "Fridgey Kit v0.4 (dual camera, env sensor board)",
+      hardwareVersion: "Nourish Kit v0.4 (dual camera, env sensor board)",
       createdAt: ago(50 * DAY),
     },
   ];

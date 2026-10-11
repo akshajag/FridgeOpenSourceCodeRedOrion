@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-/** Wordmark: "fridgey." The period is set in evergreen as the brand's one accent mark. */
+/** Wordmark: "Nourish." The period is set in evergreen as the brand's one accent mark. */
 export function Logo({ className, href = "/", size = "md" }: { className?: string; href?: string | null; size?: "sm" | "md" | "lg" }) {
   const text = (
     <span className={cn("font-display font-semibold tracking-tight leading-none select-none", size === "sm" && "text-lg", size === "md" && "text-[22px]", size === "lg" && "text-3xl", className)} translate="no">
-      fridgey<span className="text-primary">.</span>
+      Nourish<span className="text-primary">.</span>
     </span>
   );
   if (!href) return text;
   return (
-    <Link href={href} className="inline-flex items-center rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4" aria-label="Fridgey home">
+    <Link href={href} className="inline-flex items-center rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4" aria-label="Nourish home">
       {text}
     </Link>
   );

@@ -19,11 +19,11 @@ const plex = IBM_Plex_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "Fridgey — A smarter fridge for a more connected community",
-    template: "%s · Fridgey",
+    default: "Nourish — A smarter fridge for a more connected community",
+    template: "%s · Nourish",
   },
   description:
-    "Fridgey is an AI-powered community food-sharing platform connected to smart refrigerators. Track donations, monitor refrigeration conditions, and connect donors with nearby food banks.",
+    "Nourish is an AI-powered community food-sharing platform connected to smart refrigerators. Track donations, monitor refrigeration conditions, and connect donors with nearby food banks.",
 };
 
 export const viewport: Viewport = {

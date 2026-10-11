@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Sign in" };
 
 export default function SignInPage() {
   return (
-    <AuthFrame title="Sign in to Fridgey" subtitle="Food banks, fridge operators, and donors use one account. Roles are added after sign-in." configured={isClerkConfigured()}>
+    <AuthFrame title="Sign in to Nourish" subtitle="Food banks, fridge operators, and donors use one account. Roles are added after sign-in." configured={isClerkConfigured()}>
       {isClerkConfigured() && <ClerkSignIn />}
     </AuthFrame>
   );

@@ -93,6 +93,7 @@ app.post('/inventory/audits',async(req,res)=>{
   res.status(result.rowCount?201:200).json({id:a.id,stored:true,requires_review:true,inventory_changed:false});
 });
 app.get('/fridges/:id/inventory',async(req,res)=>res.json((await pool.query('SELECT * FROM fridge.inventory_balances WHERE fridge_id=$1 ORDER BY canonical_name',[fridge.parse(req.params.id)])).rows));
+app.get('/fridges/:id/events',async(req,res)=>res.json((await pool.query(`SELECT e.id,e.product_id,e.kind,e.quantity_delta,e.verification,e.occurred_at,p.canonical_name FROM fridge.inventory_events e JOIN fridge.products p ON p.id=e.product_id WHERE e.fridge_id=$1 ORDER BY e.occurred_at DESC LIMIT 100`,[fridge.parse(req.params.id)])).rows));
 app.get('/fridges/:id/audits',async(req,res)=>res.json((await pool.query('SELECT * FROM fridge.camera_audits WHERE fridge_id=$1 ORDER BY captured_at DESC LIMIT 100',[fridge.parse(req.params.id)])).rows));
 app.get('/fridges/:id/sensors',async(req,res)=>res.json((await pool.query('SELECT * FROM fridge.sensor_readings WHERE fridge_id=$1 ORDER BY captured_at DESC LIMIT 100',[fridge.parse(req.params.id)])).rows));
 app.use((error,_req,res,_next)=>{if(error instanceof z.ZodError)return res.status(400).json({error:'invalid_input',fields:error.issues.map(i=>i.path.join('.'))});if(error.code==='METRICS_WINDOW_TOO_LARGE')return res.status(422).json({error:'reduce_metrics_window'});if(error.type==='entity.too.large')return res.status(413).json({error:'payload_too_large'});res.status(500).json({error:'data_operation_failed'});});

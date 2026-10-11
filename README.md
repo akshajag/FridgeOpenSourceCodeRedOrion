@@ -2,6 +2,8 @@
 
 CodeRED Orion 2026 project for community food donation and fridge monitoring.
 
+Start the integrated two-screen MVP with **Launch MVP.command**. See [local startup, device pairing and test flow](RUN_LOCAL.md).
+
 ## Components
 
 - **Hardware:** Arduino UNO R4 WiFi with temperature, contact-moisture, air-response and acceleration sensors.

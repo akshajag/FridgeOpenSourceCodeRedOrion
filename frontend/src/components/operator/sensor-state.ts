@@ -1,23 +1,22 @@
 import type { AlertType, FridgeCapabilities, FridgeThresholds, InventoryEvent, SensorMetric, SensorReading } from "@/types";
-import { HOUR_MS } from "@/lib/data/derived";
 
 export type SensorState = "ok" | "warning" | "critical" | "stale";
 
 export const METRICS: SensorMetric[] = ["temperature", "humidity", "air_quality"];
 
 /** Readings older than this are treated as stale rather than current. */
-export const STALE_MS = 2 * HOUR_MS;
+export const STALE_MS = 20_000;
 
 export const METRIC_LABEL: Record<SensorMetric, string> = {
   temperature: "Temperature",
   humidity: "Humidity",
-  air_quality: "Air quality (CO₂-eq)",
+  air_quality: "Air sensor response",
 };
 
-export const METRIC_UNIT: Record<SensorMetric, "°C" | "%" | "ppm"> = {
+export const METRIC_UNIT: Record<SensorMetric, "°C" | "%" | "ppm" | "raw"> = {
   temperature: "°C",
   humidity: "%",
-  air_quality: "ppm",
+  air_quality: "raw",
 };
 
 export const METRIC_DECIMALS: Record<SensorMetric, number> = {

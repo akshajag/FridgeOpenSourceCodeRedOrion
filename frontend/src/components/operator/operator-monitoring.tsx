@@ -196,7 +196,7 @@ function ThresholdsPanel({ fridge, onSave }: { fridge: Fridge; onSave: (t: Fridg
     const h = humidityMax.trim() === "" ? undefined : Number(humidityMax);
     if (caps.humidity && h !== undefined && (Number.isNaN(h) || h <= 0 || h > 100)) next.humidityMax = "Enter a percentage between 1 and 100.";
     const a = airMax.trim() === "" ? undefined : Number(airMax);
-    if (caps.airQuality && a !== undefined && (Number.isNaN(a) || a <= 0)) next.airMax = "Enter a positive ppm value.";
+    if (caps.airQuality && a !== undefined && (Number.isNaN(a) || a <= 0)) next.airMax = "Enter a positive raw sensor value.";
     setErrors(next);
     if (Object.keys(next).length) return;
     setSaving(true);
@@ -231,7 +231,7 @@ function ThresholdsPanel({ fridge, onSave }: { fridge: Fridge; onSave: (t: Fridg
             {field("th-temp-max", "Temp max", tempMax, setTempMax, "°C", "0.1", errors.tempMax)}
           </div>
           {caps.humidity && field("th-humidity-max", "Humidity max", humidityMax, setHumidityMax, "%", "1", errors.humidityMax)}
-          {caps.airQuality && field("th-air-max", "Air quality max", airMax, setAirMax, "ppm", "10", errors.airMax)}
+          {caps.airQuality && field("th-air-max", "Air response max", airMax, setAirMax, "raw", "10", errors.airMax)}
           {!caps.humidity && !caps.airQuality && <p className="text-[12px] text-muted-foreground">Humidity and air-quality limits appear when those sensors are installed.</p>}
           <Button type="submit" size="sm" disabled={saving}><Save aria-hidden="true" /> Save thresholds</Button>
         </form>

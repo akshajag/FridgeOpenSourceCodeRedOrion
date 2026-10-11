@@ -44,7 +44,7 @@ export function AlertList({ alerts, actions, compact = false, className }: { ale
             key={a.id}
             className={cn("items-start", compact ? "px-5 py-2.5" : "px-5 py-3.5")}
             trailing={
-              resolved ? (
+              a.id.startsWith("condition-") ? (<span className="text-xs text-muted-foreground">Clears when readings recover</span>) : resolved ? (
                 <span className="text-[12px] text-muted-foreground">Resolved {formatRelative(a.resolvedAt!)}</span>
               ) : (
                 <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center">

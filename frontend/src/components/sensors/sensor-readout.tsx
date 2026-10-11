@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 const META: Record<SensorMetric, { label: string; icon: React.ComponentType<{ className?: string }>; decimals: number }> = {
   temperature: { label: "Temperature", icon: Thermometer, decimals: 1 },
   humidity: { label: "Humidity", icon: Droplets, decimals: 0 },
-  air_quality: { label: "Air quality (CO₂-eq)", icon: Wind, decimals: 0 },
+  air_quality: { label: "Air sensor response", icon: Wind, decimals: 0 },
 };
 
 /**

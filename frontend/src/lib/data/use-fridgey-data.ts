@@ -41,6 +41,7 @@ export function useFridgeyData(): FridgeyData {
   const live = useQuery({
     queryKey: ["fridgey-dataset"],
     queryFn: fetchDataset,
+    refetchInterval: 2000,
     enabled: mode === "live",
   });
 

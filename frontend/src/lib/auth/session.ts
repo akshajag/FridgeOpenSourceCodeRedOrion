@@ -1,5 +1,6 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { trustedDevice, DEVICE_COOKIE } from "@/lib/hardware/device";
+import { cookies, headers } from "next/headers";
 import type { Membership, Role } from "@/types";
 import { DEMO_COOKIE, isClerkConfigured, isDemoPersona, type DemoPersona } from "./config";
 import { DEMO_IDS } from "@/lib/demo/seed";
@@ -56,6 +57,13 @@ export async function getSession(): Promise<FridgeySession | null> {
         onboarded: Boolean(metadata.onboarded),
       };
     }
+  }
+  if (process.env.FRIDGE_HARDWARE_MODE === "1" && !isClerkConfigured()) {
+    const host = (await headers()).get("host")?.split(":")[0];
+    if (trustedDevice(host ?? null, (await cookies()).get(DEVICE_COOKIE)?.value)) return {
+      mode: "live", userId: "local-hardware-operator", name: "Local fridge operator", email: "", onboarded: true,
+      memberships: [{ role: "operator", fridgeId: process.env.FRIDGE_ID ?? "orion-fridge-01" }],
+    };
   }
   const persona = await getDemoPersona();
   if (persona) {

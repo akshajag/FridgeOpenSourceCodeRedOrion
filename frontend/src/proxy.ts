@@ -1,3 +1,4 @@
+import { trustedDevice, DEVICE_COOKIE } from "@/lib/hardware/device";
 import { NextResponse, type NextRequest } from "next/server";
 import { DEMO_COOKIE, isDemoPersona } from "@/lib/auth/config";
 
@@ -27,6 +28,9 @@ function gate(req: NextRequest, signedIn: boolean) {
 let clerkHandler: ((req: NextRequest, evt: unknown) => Promise<Response> | Response) | null = null;
 
 export default async function proxy(req: NextRequest, evt: unknown) {
+  if (process.env.FRIDGE_HARDWARE_MODE === "1" && (/^\/(kiosk|dashboard)(\/|$)/.test(req.nextUrl.pathname)) && !trustedDevice(req.headers.get("host"),req.cookies.get(DEVICE_COOKIE)?.value)) {
+    const url=req.nextUrl.clone();url.pathname="/connect";url.search="";url.searchParams.set("next",req.nextUrl.pathname);return NextResponse.redirect(url);
+  }
   if (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY) {
     if (!clerkHandler) {
       const { clerkMiddleware } = await import("@clerk/nextjs/server");
@@ -37,7 +41,7 @@ export default async function proxy(req: NextRequest, evt: unknown) {
     }
     return clerkHandler!(req, evt);
   }
-  return gate(req, false);
+  return gate(req, trustedDevice(req.headers.get("host"),req.cookies.get(DEVICE_COOKIE)?.value));
 }
 
 export const config = {

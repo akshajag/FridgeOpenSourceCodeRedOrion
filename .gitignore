@@ -6,3 +6,5 @@ models/
 audits/
 inventory_ledger.json
 runtime/
+
+.venv

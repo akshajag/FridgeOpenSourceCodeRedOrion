@@ -20,7 +20,7 @@ export function useOperatorFridge() {
  * A render-stable "now" that ticks on an interval so relative timestamps ("3 min ago")
  * stay honest without calling Date.now() during render.
  */
-export function useNow(intervalMs = 30_000): number {
+export function useNow(intervalMs = 2_000): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), intervalMs);

@@ -12,9 +12,12 @@ ROOT=Path(__file__).resolve().parent
 
 def main():
     parser=argparse.ArgumentParser()
+    parser.add_argument('--dev',action='store_true',help='Use the frontend development server rather than an available production build')
+    parser.add_argument('--mvp',action='store_true',help='Run the unified browser kiosk and hardware dashboard')
     parser.add_argument('--voice',action='store_true',help='Run ElevenLabs camera/voice window instead of the feature test bench')
     parser.add_argument('--configure-agent',action='store_true',help='Create/update the ElevenLabs agent tools before starting voice')
     args,extra=parser.parse_known_args()
+    args.voice = args.voice or args.mvp
     load_dotenv(ROOT/'.env')
     if args.voice and not os.getenv('ELEVENLABS_API_KEY'):
         raise SystemExit('Enter ELEVENLABS_API_KEY privately in .env before running --voice.')
@@ -57,6 +60,17 @@ def main():
             import fridge_voice_agent as voice
             agent=voice.setup_agent(ElevenLabs(api_key=os.environ['ELEVENLABS_API_KEY']))
             os.environ['ELEVENLABS_AGENT_ID']=agent
+        if args.mvp:
+            command.append('--web')
+            built=(ROOT/'frontend'/'.next-check'/'BUILD_ID').exists() and not args.dev
+            if built:os.environ['NEXT_DIST_DIR']='.next-check'
+            start(['npm','run','start' if built else 'dev','--','--hostname','0.0.0.0','--port','3001'],'frontend',ROOT/'frontend')
+            print('Fridge kiosk: http://127.0.0.1:3001/kiosk',flush=True)
+            for interface in ('en0','en1'):
+                ip=subprocess.run(['ipconfig','getifaddr',interface],capture_output=True,text=True).stdout.strip()
+                if ip:
+                    print(f'Other-device dashboard: http://{ip}:3001/dashboard/operator',flush=True)
+                    break
         window=subprocess.Popen(command,cwd=ROOT)
         children.append(window)
         return window.wait()

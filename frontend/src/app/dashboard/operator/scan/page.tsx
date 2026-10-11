@@ -1,7 +1,2 @@
-import { OperatorScan } from "@/components/operator/operator-scan";
-
-export const metadata = { title: "Camera scan" };
-
-export default function Page() {
-  return <OperatorScan />;
-}
+import { redirect } from "next/navigation";
+export default function Page() { redirect("/kiosk"); }

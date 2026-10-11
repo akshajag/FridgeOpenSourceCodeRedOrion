@@ -95,7 +95,7 @@ MAX_RECONNECTS = 5
 # Persona
 # --------------------------------------------------------------------------
 AGENT_NAME = "Smart Food Bank Fridge - Nourish"
-DEFAULT_VOICE_ID = "DYkrAHD8iwork3YSUBbs"  # https://elevenlabs.io/voices/DYkrAHD8iwork3YSUBbs
+DEFAULT_VOICE_ID = "mUMf6FnFQ187d2RrRzft"  # Project custom voice; requires access in the ElevenLabs account.
 # Nourish starts in English and switches to whichever of these a person speaks.
 EXTRA_LANGUAGES = ["es", "fr", "zh", "hi", "ar", "vi", "pt", "ko", "ja", "de", "it", "ru", "tl"]
 FIRST_MESSAGE = (
@@ -137,6 +137,7 @@ The camera scans actively: it watches until something is held up, so you never w
 6. Decide whether to accept it: sealed or unopened, not past its date (the tool result tells you today's date), and not something the fridge cannot take (alcohol, opened packages, home-cooked food without a label and date, anything that smells or looks off). Those are the only restrictions; do not invent others. Any other sealed, in-date food or drink is welcome, including snacks, soda and energy drinks. If it is not okay, decline kindly, explain why in one sentence, and thank them for the thought. If it is okay, tell them to place it inside. Then ask whether they have actually placed it inside, and wait for an explicit answer. Confirming its name, quantity or expiration date does not confirm placement.
 7. Once they explicitly confirm placement, say "Let me check the inside camera" and call log_donation with placement_confirmed=true for this ONE product and its quantity. This tool compares before/after inside-camera pictures and only records if it verifies a new matching item. If it cannot verify, do not announce a donation: ask them to make the item visible on the shelf and tell you when ready; then retry log_donation without rescanning the donor camera. Once the tool reports saved, ask if they have another item; if so go back to step 1. Include barcode digits if read. Never bundle different products into one log call.
 8. Only after the tool reports the donation was saved, thank the donor. Do not offer or mention points, scores, rewards or a leaderboard.
+9. Ask if they have another item. If they say no, they are finished, cancel, or say goodbye, give a brief farewell and call end_call. Never stay in the same conversation for the next donor. Ending discards unfinished scans; it never records an unconfirmed donation. If they have more items, continue this session.
 
 # Live fridge data
 You cannot see or feel anything yourself. Everything you know about the fridge arrives one of three ways:
@@ -156,6 +157,7 @@ Stay on the fridge, food and the donation. If asked about something else, answer
 # Tools the agent can call. They execute in THIS process (ClientTools), which is
 # what lets them read live Gemini state. Names must match _build_client_tools.
 CLIENT_TOOL_SPECS = [
+    {"type": "system", "name": "end_call", "description": "End this donor session after they finish, cancel or say goodbye. Say a brief farewell; the kiosk will reset for the next donor.", "params": {"system_tool_type": "end_call"}},
     {
         # Built-in ElevenLabs tool: switches the conversation (speech
         # recognition and voice) to the language the person is speaking.
@@ -700,6 +702,9 @@ class FridgeVoiceAgent:
         self._caption_listeners: list[Callable[[str, str], None]] = []
         self._checks = 0
         self._pending_products: list[dict] = []  # scanned since the last logged donation
+        self._session_generation = 0
+        self._session_reset_listeners = []
+        self._session_permission = None
 
     # ======================================================================
     # Gemini / sensor hooks. All are thread-safe and never raise, so the
@@ -844,14 +849,47 @@ class FridgeVoiceAgent:
     # ======================================================================
     # Lifecycle
     # ======================================================================
+    def on_session_reset(self, listener: Callable[[], None]) -> None:
+        """Clear per-donor UI, camera state and frontend auth on every session end."""
+        self._session_reset_listeners.append(listener)
+
+    def reset_donor_session(self) -> None:
+        """Keep fridge context/history; discard everything belonging to the departing donor."""
+        with self._lock:
+            self._session_generation += 1
+            self._pending_products.clear()
+            self._checks = 0
+            job = self._barcode_job
+            self._barcode_job = None
+            self._barcode_claimed = False
+            self._context = {key: [value[0], False] for key, value in self._context.items()
+                             if key in ("FRIDGE VISION", "FRIDGE SENSORS")}
+        if job is not None:
+            job.cancel()
+        for listener in list(self._session_reset_listeners):
+            try:
+                listener()
+            except Exception:
+                log.exception("Kiosk session reset failed")
+                self._stop.set()  # Never let a new donor inherit a failed auth/UI reset.
+        self._caption("session_reset", "")
+        self.transcript = TranscriptLog()
+
     def run(self) -> None:
         """Blocks until stop(). Reconnects if the socket drops mid-demo."""
         failures = 0
         while not self._stop.is_set():
+            if self._session_permission is not None and not self._session_permission.wait(0.2):
+                continue
             started = time.monotonic()
-            self._run_session()
+            clean_end = self._run_session()
             if self._stop.is_set() or not self._reconnect:
                 break
+            if clean_end:
+                failures = 0
+                self._caption("status", "Ready for the next donor")
+                self._stop.wait(2)
+                continue
             if time.monotonic() - started > 30:
                 failures = 0  # that was a real session, not a failed connect
             failures += 1
@@ -878,7 +916,7 @@ class FridgeVoiceAgent:
         except Exception as exc:
             log.warning("Could not send message: %s", exc)
 
-    def _run_session(self) -> None:
+    def _run_session(self) -> bool:
         ended = threading.Event()
         audio = None
         if not self._text_mode:
@@ -903,7 +941,8 @@ class FridgeVoiceAgent:
         except Exception as exc:
             log.error("Could not start session (check ELEVENLABS_API_KEY / ELEVENLABS_AGENT_ID): %s", exc)
             conversation.end_session()
-            return
+            self.reset_donor_session()
+            return False
 
         self._conversation = conversation
         announced = False
@@ -933,6 +972,8 @@ class FridgeVoiceAgent:
                 self._caption("status", "Could not connect")
             else:
                 self._caption("status", "Disconnected")
+            self.reset_donor_session()
+        return announced and ended.is_set() and not error
 
     def _live_conversation(self) -> Optional[Conversation]:
         """The conversation, but only once the handshake is done.
@@ -1044,14 +1085,14 @@ class FridgeVoiceAgent:
         with self._lock:
             job = self._barcode_job
             if job is None or job.done():
-                job = self._barcode_job = self._barcode_pool.submit(self._barcode_scan_job, announce_result)
+                job = self._barcode_job = self._barcode_pool.submit(self._barcode_scan_job, announce_result, self._session_generation)
             elif not announce_result:
                 # The agent asked for the scan that is already running: it
                 # will get the answer as its tool result, so don't also send it.
                 self._barcode_claimed = True
         return job
 
-    def _barcode_scan_job(self, announce_result: bool) -> str:
+    def _barcode_scan_job(self, announce_result: bool, generation: int) -> str:
         self._barcode_claimed = not announce_result
         started = time.monotonic()
         self._caption("status", "Scanning barcode...")
@@ -1062,6 +1103,8 @@ class FridgeVoiceAgent:
             result = ""
         finally:
             self._caption("status", "Live")
+        if generation != self._session_generation:
+            return "Discarded barcode from the previous donor session."
         result = result or "Barcode scanning is not available. Ask the donor to tell you what the product is."
         self.transcript.add("scan_barcode", result)
         if not self._barcode_claimed:
@@ -1069,7 +1112,7 @@ class FridgeVoiceAgent:
             # that lands mid-sentence would cut it off. Let it finish first.
             self._stop.wait(max(0.0, BARCODE_RESULT_MIN_DELAY_S - (time.monotonic() - started)))
             conversation = self._live_conversation()
-            if conversation is not None:
+            if conversation is not None and generation == self._session_generation:
                 try:
                     conversation.send_user_message(f"[CAMERA RESULT] {result}")
                 except Exception as exc:

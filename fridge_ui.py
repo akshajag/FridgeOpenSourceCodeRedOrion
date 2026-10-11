@@ -50,6 +50,7 @@ class Camera:
         self.index = index
         self._auto_select = auto_select  # skip cameras that only deliver black frames
         self._exclude = exclude  # a camera with another job (the shelf camera): never switch onto it
+        self.mirror_horizontal = os.getenv("FRIDGE_FRONT_MIRROR", "0") == "1" if index == int(os.getenv("FRIDGE_CAMERA_INDEX", "0")) else os.getenv("FRIDGE_SHELF_MIRROR", "0") == "1"
         self._frame: Optional[np.ndarray] = None
         self._lock = threading.Lock()
         self._running = threading.Event()
@@ -91,6 +92,7 @@ class Camera:
         capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
         capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
         capture.set(cv2.CAP_PROP_FPS, 30)
+        capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         return capture
 
     def _loop(self) -> None:
@@ -113,6 +115,8 @@ class Camera:
                 capture.release()
                 capture = None
                 continue
+            if self.mirror_horizontal:
+                frame = cv2.flip(frame, 1)
             # A camera that opens but only sends black (lid shutter closed,
             # privacy switch on) is no use: move on to the next one, once
             # around, instead of leaving the app staring at nothing.
@@ -376,7 +380,15 @@ class FridgeUI:
         self.root.after(50, self._tick_events)
 
     def _show(self, role: str, text: str) -> None:
-        if role == "agent":
+        if role == "session_reset":
+            self.agent_caption.configure(text="Welcome! Tell me what you would like to donate.", fg=TEXT)
+            self.user_caption.configure(text="")
+            self.donation_status.configure(text="")
+            self.product.configure(text="")
+            self.notice.pack_forget()
+            self.entry.delete(0, "end")
+            self._show_photo(None)
+        elif role == "agent":
             self.agent_caption.configure(text=text, fg=TEXT)
         elif role == "agent_cut_off":
             # Barge-in: show only what was actually spoken before the cut.
@@ -436,6 +448,7 @@ class FridgeUI:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Nourish demo window: webcam + captions")
     parser.add_argument("--camera", type=int, default=int(os.getenv("FRIDGE_CAMERA_INDEX", "0")), help="webcam index")
+    parser.add_argument("--web", action="store_true", help="Serve the shared camera/voice bridge for the frontend")
     parser.add_argument("--text", action="store_true", help="text-only session: no mic, no speaker")
     parser.add_argument("--no-gemini", action="store_true", help="on-device vision only, never call Gemini")
     parser.add_argument(
@@ -542,9 +555,17 @@ def main() -> int:
     def barcode_with_before_frame():
         if placement.before is None: placement.begin()
         return vision.scan_barcode()
+    def reset_camera_session():
+        placement.complete()
+        vision.reset_session()
+    agent.on_session_reset(reset_camera_session)
     agent.set_item_scanner(scan_with_before_frame)
     agent.set_barcode_scanner(barcode_with_before_frame)
-    window = FridgeUI(agent, camera, vision, shelf_camera, auditor)
+    if args.web:
+        from fridge_web import FridgeWebUI
+        window = FridgeWebUI(agent, camera, vision, shelf_camera, auditor)
+    else:
+        window = FridgeUI(agent, camera, vision, shelf_camera, auditor)
 
     if auditor is not None:
 

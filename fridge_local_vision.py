@@ -834,6 +834,7 @@ class LocalVision:
         self.store_images = StoreImages()
         # The last catalog match, for a UI or database: {"barcode", "name", "brand", "size", "image_url"}.
         self.last_product: Optional[dict] = None
+        self._session_generation = 0
         self._ocr = None
         self._yolo = None
         self._load_lock = threading.Lock()
@@ -843,6 +844,13 @@ class LocalVision:
         self.overlay: tuple[float, list] = (0.0, [])
 
     # -- setup ---------------------------------------------------------------
+    def reset_session(self) -> None:
+        self.last_product = None
+        self._session_generation += 1
+        self.last_details = None
+        self.product_photo = None
+        self.overlay = (0.0, [])
+
     def warm_up(self) -> None:
         """Load both models and run them once, so the first real scan is instant."""
         with self._load_lock:
@@ -1294,9 +1302,10 @@ class LocalVision:
         if self._fallback is None or self._on_second_opinion is None:
             return local_answer
 
+        generation = self._session_generation
         def check() -> None:
             answer = self._ask_fallback(lambda: self._fallback.read_expiry_frame(frame, context))
-            if answer:  # rate limited / offline / saw nothing: the local answer simply stands
+            if answer and generation == self._session_generation:  # rate limited / offline / saw nothing: the local answer simply stands
                 self._report(kind, local_answer, answer)
 
         threading.Thread(target=check, name=f"gemini-check-{kind}", daemon=True).start()
@@ -1318,6 +1327,7 @@ class LocalVision:
             return local_answer
         label_text = " | ".join(dict.fromkeys(text for text, _score, _box in label))
 
+        generation = self._session_generation
         def lookup() -> None:
             details: dict = {}
             if self._fallback is not None:
@@ -1325,8 +1335,11 @@ class LocalVision:
                     details = self._fallback.product_metadata(frame, label_text, hint)
                 except Exception as exc:
                     log.warning("Gemini product details unavailable: %s", exc)
+            if generation != self._session_generation:
+                return
             sentence = self._resolve_product(frame, label, label_text, details, catalog_product)
-            self._report("item", local_answer, sentence)
+            if generation == self._session_generation:
+                self._report("item", local_answer, sentence)
 
         threading.Thread(target=lookup, name="product-lookup", daemon=True).start()
         return local_answer
@@ -1388,6 +1401,7 @@ class LocalVision:
         spoken_first: bool = False,
     ) -> str:
         """Find the catalog listing and photo for a product, publish everything, return the summary sentence."""
+        generation = self._session_generation
         product, method = catalog_product, "barcode"
         if product is None:
             method = "catalog text search"
@@ -1407,6 +1421,8 @@ class LocalVision:
             # found the wrong listing: drop it rather than show a wrong product.
             log.info("catalog listing rejected, its photo does not match: %s", product)
             product = None
+        if generation != self._session_generation:
+            return ""
         self.last_details = {
             **details,
             "label_text": label_text,

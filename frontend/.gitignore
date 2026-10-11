@@ -51,3 +51,5 @@ next-env.d.ts
 /blender/*
 !/blender/fridge.glb
 !/blender/camera_reference.json
+
+/.next-check/

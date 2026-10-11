@@ -1,0 +1,6 @@
+"use client";
+import { useState } from "react";
+export function Connect({target}:{target:string}){
+ const [error,setError]=useState("");const [busy,setBusy]=useState(false);
+ return <main className="mx-auto max-w-md space-y-5 p-8"><h1 className="text-3xl font-semibold">Connect to your fridge</h1><p>Enter the demo device code from the fridge Mac. This connects this screen for eight hours; donor sign-in is separate.</p><form method="post" action="/api/device" className="space-y-4" onSubmit={async e=>{e.preventDefault();setBusy(true);setError("");const code=new FormData(e.currentTarget).get("code");try{const r=await fetch("/api/device",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({code})});if(!r.ok)throw new Error((await r.json()).error);const target=new URLSearchParams(location.search).get("next");location.assign(target?.startsWith("/dashboard/")||target==="/kiosk"?target:"/dashboard/operator");}catch(e){setError((e as Error).message);setBusy(false);}}}><input type="hidden" name="next" value={target}/><input name="code" aria-label="Device code" autoComplete="off" required className="w-full rounded-md border p-3"/><button disabled={busy} className="rounded-md bg-primary px-5 py-3 text-primary-foreground">Connect device</button>{error&&<p role="alert">{error}</p>}</form></main>;
+}

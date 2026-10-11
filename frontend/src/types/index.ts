@@ -145,7 +145,7 @@ export interface SensorReading {
   fridgeId: string;
   metric: SensorMetric;
   value: number;
-  unit: "°C" | "%" | "ppm";
+  unit: "°C" | "%" | "ppm" | "raw";
   source: "hardware" | "demo";
   at: ISODate;
 }
@@ -331,6 +331,6 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 /** Transparent scoring rules, shown in the leaderboard UI. */
 export const SCORING = {
-  pointsPerAcceptedUnit: 5,
-  missionCompletionBonus: 20,
+  pointsPerAcceptedUnit: 0,
+  missionCompletionBonus: 0,
 } as const;

@@ -1,4 +1,30 @@
-# Local hardware and vision integration
+# Integrated fridge MVP: two screens
+
+Keep the project outside iCloud (for example `~/Hackathon/FridgeMVP`). Double-click `Launch MVP.command`, or run:
+
+```sh
+.venv/bin/python run_fridge.py --mvp
+```
+
+On the fridge Mac open http://127.0.0.1:3001/kiosk . On the other device, use `http://<fridge-Mac-Wi-Fi-IP>:3001/dashboard/operator`. Both devices must be on the same Wi-Fi. They are two routes of the same app and share Tiger Data; you do not need to copy the database or attach hardware to the dashboard device.
+
+The cameras, microphone and speaker belong to the fridge Mac. Keep that Mac awake with Arduino and both cameras attached. Remote browsers show the screens; voice still uses the fridge Mac's audio devices.
+
+For a new Wi-Fi address, update `FRIDGE_ALLOWED_HOSTS` privately in `frontend/.env.local` and restart. Both devices will ask once for `FRIDGE_DEVICE_PAIR_CODE` from that file. Its signed HttpOnly device cookie lasts eight hours. Device pairing is separate from donor authentication. The Python camera and data APIs stay on loopback; the frontend passes their private token on the server.
+
+The launcher uses an available `.next-check` production build for a steady demo. For frontend editing with automatic updates, run `run_fridge.py --mvp --dev`; rebuild the production version with `NEXT_DIST_DIR=.next-check npm run build --prefix frontend -- --webpack` while the development server is stopped.
+
+The kiosk streams camera previews continuously at up to 15 fps with reduced preview resolution. Recognition uses the original camera frames. Set `FRIDGE_FRONT_MIRROR=1` in root `.env` to correct a horizontally reversed camera source; use `0` for an already-correct source. Shelf mirroring can be configured separately with `FRIDGE_SHELF_MIRROR`.
+
+The dashboard reads current sensor conditions and actual inventory from the existing Tiger Data API every two seconds. Hardware alert messages clear when measured conditions recover. Manual dashboard mutations are disabled in hardware mode; verified donations are recorded through the kiosk.
+
+Clerk has not been configured for this local MVP. Donations are guests, not verified donor identities. Between donors, voice/session state, pending products, captions and donor cookies reset; recorded inventory remains. With Clerk configured, the kiosk also signs out the prior donor. Each donor starts with Begin donation, talks through identification and placement, then says “I'm finished” or uses Finish / next donor.
+
+Installation on a new machine: create a Python 3.12 virtual environment, install `requirements.txt`, run `npm ci` in `frontend` and `tiger-data`, and configure each `.env.example` privately. For the integrated app, set `FRIDGE_HARDWARE_MODE=1`, `NEXT_PUBLIC_FRIDGE_HARDWARE_MODE=1`, `FRIDGE_ID`, `FRIDGE_DATA_TOKEN` (matching the local data API), allowed hosts, a device pairing code, and a random signing key in `frontend/.env.local`. Configure Gemini/ElevenLabs and camera indices in root `.env`; configure Tiger credentials and serial port in `tiger-data/.env`. Never commit these files.
+
+Validation: `python -m unittest discover -s tests`, `node --test frontend/tests/device.test.mjs`, and the frontend build/lint commands. See the remaining diagnostics below for hardware details.
+
+# Diagnostic hardware and vision integration
 
 Run from this repository in Cursor:
 
@@ -42,4 +68,4 @@ To change the speaking voice: ElevenLabs → Agents → Smart Food Bank Fridge -
 
 The date scanner tries local OCR, then Gemini on fresh camera frames if OCR cannot read a date. The voice guide asks for a steady, well-lit view of the printed date and retries once before asking the donor to read it aloud. Never treat an unreadable date as a verified expiry.
 
-The donation flow has no points, rewards, or leaderboard. Audio uses matching 16 kHz PCM formats, a 200 ms playback buffer, and limited OCR worker threads to reduce interruptions. The selected ElevenLabs voice is `DYkrAHD8iwork3YSUBbs`. If changing speakers, select the audio device before launching a new conversation.
+The donation flow has no points, rewards, or leaderboard. Audio uses matching 16 kHz PCM formats, a 200 ms playback buffer, and limited OCR worker threads to reduce interruptions. The selected ElevenLabs voice is `mUMf6FnFQ187d2RrRzft`. If changing speakers, select the audio device before launching a new conversation.

@@ -15,9 +15,8 @@ class AuditorTests(unittest.TestCase):
         self.assertEqual(result['observed_items'],[{'name':'Beans','count':0}])
         self.assertEqual(result['unclear'],['Milk'])
         self.assertEqual(auditor.expected,[{'name':'Milk','count':2},{'name':'Beans','count':1}])
-    def test_unchanged_image_is_analyzed_again_after_five_minutes(self):
+    def test_every_check_analyzes_a_fresh_image_even_when_unchanged(self):
         auditor,model=self.make()
-        with patch('fridge_inventory.time.monotonic',return_value=1000):auditor.audit_now()
-        with patch('fridge_inventory.time.monotonic',return_value=1100):self.assertEqual(auditor.audit_now()['status'],'unchanged')
-        with patch('fridge_inventory.time.monotonic',return_value=1301):auditor.audit_now()
+        auditor.audit_now()
+        auditor.audit_now()
         self.assertEqual(model.audit_shelves.call_count,2)

@@ -466,8 +466,8 @@ def main() -> int:
     parser.add_argument(
         "--audit-interval",
         type=float,
-        default=float(os.getenv("FRIDGE_AUDIT_INTERVAL", "300")),
-        help="seconds between shelf audits (default 300; use e.g. 30 for a demo)",
+        default=float(os.getenv("FRIDGE_AUDIT_INTERVAL", "30")),
+        help="seconds between shelf audits (default 30)",
     )
     parser.add_argument("--mic", default=os.getenv("FRIDGE_MIC_DEVICE", "Logitech"))
     parser.add_argument("--speaker", default=os.getenv("FRIDGE_SPEAKER_DEVICE", "JBL"))

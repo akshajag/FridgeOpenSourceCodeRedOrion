@@ -94,7 +94,7 @@ export function LiveInventory() {
         description="What the back camera sees on the shelves, stored in Tiger Data."
         meta={
           <span className="rounded-md border border-evergreen/30 bg-sage px-2 py-1 text-xs text-evergreen">
-            Shelf results · refreshes every 5 seconds
+            Camera scan every 30 seconds · page refresh every 5 seconds
           </span>
         }
         actions={
@@ -121,6 +121,7 @@ export function LiveInventory() {
             >
               Retry connection
             </Button>
+            <a href="/connect?next=/dashboard/operator/inventory" className="mt-3 block text-sm underline">Connect the fridge device, or sign in with your account</a>
           </PanelBody>
         </Panel>
       )}
@@ -129,7 +130,7 @@ export function LiveInventory() {
           Loading Tiger Data inventory…
         </p>
       )}
-      {data && (
+      {data && !error && (
         <>
           <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border bg-sage/30 p-5">
             <div>
@@ -219,7 +220,7 @@ export function LiveInventory() {
           <Panel tone="sage">
             <PanelHeader
               title="Seen by the back camera"
-              description={shelf ? `Latest successful shelf scan: ${when(shelf.at)}. Camera scans run every five minutes; this page checks for new results every five seconds.` : "Waiting for a successful back-camera shelf scan."}
+              description={shelf ? `Latest successful shelf scan: ${when(shelf.at)}. Camera snapshots run every 30 seconds; this page checks for new results every five seconds.` : "Waiting for a successful back-camera shelf scan."}
             />
             <PanelBody className="pb-5">
               {observed.length ? (
@@ -365,7 +366,7 @@ export function LiveInventory() {
                   ))
                 ) : (
                   <p className="py-3 text-sm text-muted-foreground">
-                    The rear camera uploads an audit every five minutes while
+                    The rear camera uploads an audit every 30 seconds while
                     the camera app is running.
                   </p>
                 )}

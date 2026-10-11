@@ -39,7 +39,7 @@ import numpy as np
 
 log = logging.getLogger("fridge.inventory")
 
-AUDIT_INTERVAL_S = 300.0
+AUDIT_INTERVAL_S = 30.0
 AUDIT_DIR = Path(__file__).with_name("audits")
 LEDGER_PATH = Path(__file__).with_name("inventory_ledger.json")
 # Recheck at the configured interval even if the image is unchanged.
@@ -67,6 +67,7 @@ class InventoryAuditor:
         self._on_report = on_report
         self._capture = capture or self._grab_from_camera
         self._lock = threading.Lock()
+        self._audit_lock = threading.Lock()
         self._stop = threading.Event()
         self._wake = threading.Event()
         self._thread: Optional[threading.Thread] = None
@@ -128,16 +129,21 @@ class InventoryAuditor:
     def _loop(self) -> None:
         if self._stop.wait(CAMERA_WARMUP_S): return
         while not self._stop.is_set():
+            started = time.monotonic()
             try:
                 self.audit_now()
             except Exception as exc:  # one bad audit must not end the schedule
                 log.exception("Inventory audit crashed: %s", exc)
-            self._wake.wait(self.interval_s)
+            self._wake.wait(max(1, self.interval_s - (time.monotonic() - started)))
             self._wake.clear()
 
     # -- one audit -------------------------------------------------------------
     def audit_now(self) -> dict:
-        """Take one picture and report. Never raises for camera or Gemini trouble."""
+        """Capture and analyze a fresh shelf image; never overlap model calls."""
+        with self._audit_lock:
+            return self._audit_once()
+
+    def _audit_once(self):
         started = datetime.now(timezone.utc)
         report = {
             "time": started.isoformat(timespec="seconds"),
@@ -171,11 +177,6 @@ class InventoryAuditor:
             expected = [dict(item) for item in self.expected]
             dirty = self._ledger_dirty
             previous = self._last_analysed
-        changed = previous is None or float(np.count_nonzero(cv2.absdiff(small, previous) > 25)) / small.size
-        overdue = time.monotonic() - self._last_analysed_at >= self.interval_s
-        if previous is not None and changed < CHANGED_PIXEL_FRACTION and not dirty and not overdue:
-            return self._finish(report, "unchanged", "The picture looks the same as at the last check.")
-
         if self._gemini is None:
             return self._finish(report, "unavailable", "The shelves changed, but no vision model is configured to check them.")
         try:

@@ -75,6 +75,10 @@ class FridgeWebUI:
                     if size>4096:raise ValueError()
                     body=json.loads(self.rfile.read(size) or '{}')
                 except Exception:return self.send(400,{'error':'Invalid request'})
+                if self.path=='/audit':
+                    if ui.auditor is None:return self.send(503,{'error':'Shelf auditor unavailable'})
+                    threading.Thread(target=ui.auditor.check_now,daemon=True).start()
+                    return self.send(200,{'queued':True})
                 if self.path=='/begin':
                     identity=body.get('identity')
                     if identity is not None and (not isinstance(identity,dict) or not isinstance(identity.get('id'),str)):return self.send(400,{'error':'Invalid identity'})

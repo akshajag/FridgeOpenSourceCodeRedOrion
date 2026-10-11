@@ -1,8 +1,8 @@
-# Claude Code build prompt — smart fridge vision, barcode and voice
+# Vision, barcode and voice requirements
 
-Implement the following in my existing FoodBankSmartFridge app. First read repository instructions and inspect the current frontend, backend and working ElevenLabs conversation. Preserve unrelated teammates' work and reuse the working ElevenLabs agent/session. You may rebuild the earlier camera module if needed. Complete the functionality, not just a plan or mockup.
+This document specifies the target donation and inventory workflow. Requirements describe the intended integration, not a claim that every feature is implemented. See [CAMERA_INTEGRATION.md](CAMERA_INTEGRATION.md) for the camera module's current capabilities and remaining work.
 
-Repository: https://github.com/ragnorok23/FoodBankSmartFridge
+Repository: https://github.com/akshajag/FridgeOpenSourceCodeRedOrion
 
 ## Goal
 
@@ -40,7 +40,7 @@ Suggested tools:
 - `scan_product_barcode()`: bounded front-camera barcode scanning → backend catalog lookup.
 - `confirm_donation(proposal_id, quantity)`: submit donor-confirmed placement through the backend, idempotently.
 
-Specify exact tool schemas and agent dashboard instructions in the final handoff. Configure a supported timeout to accommodate real Gemini latency. A server webhook cannot access the local webcam; capture and barcode decoding must run on the local client or through an explicitly implemented local bridge. Camera tools must be registered in the actual ElevenLabs conversation page, not an unrelated browser tab.
+Specify exact tool schemas and agent dashboard instructions in the integration documentation. Configure a supported timeout to accommodate real Gemini latency. A server webhook cannot access the local webcam; capture and barcode decoding must run on the local client or through an explicitly implemented local bridge. Camera tools must be registered in the actual ElevenLabs conversation page, not an unrelated browser tab.
 
 ## Product images
 
@@ -74,7 +74,7 @@ Be honest about operation: browser scheduling requires the local camera page/bac
 
 ## Tiger Data integration
 
-Tiger Data will be our central database. Its account onboarding is in progress; do not assume a service or working credentials already exists. Prepare migrations and environment placeholders now, and connect once Saleh supplies credentials privately.
+Tiger Data provides the shared sensor and inventory database. The implemented schema and storage API are documented in `tiger-data/README.md`. Provision credentials privately and integrate the camera workflow with those existing endpoints.
 
 Use:
 
@@ -89,9 +89,9 @@ Store retained image files in object/file storage and their references in Tiger 
 
 ## Security and API boundaries
 
-Keep `GEMINI_API_KEY` and database credentials server-side, outside Git. Supply blank `.env.example` entries; Saleh enters secrets privately. Never print existing secrets or put them in `NEXT_PUBLIC_`/`VITE_` variables. Keep ElevenLabs private API credentials server-side while following the existing agent authentication flow.
+Keep `GEMINI_API_KEY` and database credentials server-side, outside Git. Supply blank `.env.example` entries; configure secrets privately. Never print existing secrets or put them in `NEXT_PUBLIC_`/`VITE_` variables. Keep ElevenLabs private API credentials server-side while following the existing agent authentication flow.
 
-Validate image format/size, barcode format, quantity, language and Gemini output. Authenticate publicly reachable endpoints and rate-limit costly calls. Use configured catalog endpoints and validated provider results rather than fetching arbitrary user/model-supplied URLs. Sanitize errors. No new paid services or billing activation without asking.
+Validate image format/size, barcode format, quantity, language and Gemini output. Authenticate publicly reachable endpoints and rate-limit costly calls. Use configured catalog endpoints and validated provider results rather than fetching arbitrary user/model-supplied URLs. Sanitize errors. Configure provider quotas and billing explicitly before enabling paid services.
 
 Suggested contracts, adapted to existing app conventions:
 

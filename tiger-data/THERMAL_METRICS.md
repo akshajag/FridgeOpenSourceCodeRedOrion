@@ -1,6 +1,6 @@
 # Nourish: thermal exposure + monitoring coverage
 
-Two useful mathematical features are implemented in the existing Tiger Data module. Sensor collection remains paused until Saleh says **ready**; no test readings were inserted into Tiger Data for this work.
+The Tiger Data module computes observed thermal exposure and monitoring coverage from timestamped sensor readings. Collection is controlled independently by the local serial bridge and its pause marker.
 
 ## Implemented mathematics
 
@@ -50,7 +50,7 @@ Default window: last hour. Maximum: seven days; requests exceeding 150,000 rows 
 
 Response fields include `observed_exposure_c_minutes`, `observed_minutes_above_threshold`, `coverage_fraction`, `longest_missing_interval_minutes`, `unmonitored_minutes`, `time_weighted_temperature_c`, `sensor_status`, sample counts, last-valid timestamp/age, settings, assumptions, and covered chart segments.
 
-Open `http://127.0.0.1:3200/monitor` with the data API running. The local page connects automatically with a short-lived, HttpOnly, SameSite=Strict cookie restricted by the server to same-origin thermal reads. No token prompt is needed and the backend token is never sent to the browser. All write endpoints still require backend bearer authorization. Auto-refresh reads metrics every ten seconds; it does not start sensor collection or write any data. This standalone monitoring view is ready; the camera teammate can reuse the endpoint in their final dashboard via their authenticated backend. The data API remains localhost-only.
+Open `http://127.0.0.1:3200/monitor` with the data API running. The local page connects automatically with a short-lived, HttpOnly, SameSite=Strict cookie restricted by the server to same-origin thermal reads. No token prompt is needed and the backend token is never sent to the browser. All write endpoints still require backend bearer authorization. Auto-refresh reads metrics every ten seconds; it does not start sensor collection or write any data. This standalone monitoring view is ready; the integrated application can reuse the endpoint in their final dashboard via their authenticated backend. The data API remains localhost-only.
 
 ## Validation
 

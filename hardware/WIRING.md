@@ -38,7 +38,7 @@ flowchart LR
 Upload `fridge_all_sensors/fridge_all_sensors.ino`. Run the sensor task in
 `FOODBANK.code-workspace`; leave Arduino Serial Monitor closed while it runs.
 Use the web monitor to watch readings without taking the serial port away.
-Saleh's private configuration records approximately one row per second.
+The demo configuration records approximately one row per second.
 
 The Logitech webcam connects directly to a computer's USB port, not the Arduino.
 The Mac camera, Gemini/barcode identification and JBL/ElevenLabs audio are
@@ -46,7 +46,7 @@ separate teammate modules; the sensor firmware does not control them.
 
 Database schema: `../tiger-data/migrations/001_fridge.sql`.
 Startup/storage instructions: `../tiger-data/README.md`.
-Thermal API: `../tiger-data/MATH-HANDOFF.md`.
-Alert integration/calibration: `../tiger-data/CONDITION-ALERTS-HANDOFF.md`.
+Thermal API: `../tiger-data/THERMAL_METRICS.md`.
+Alert integration/calibration: `../tiger-data/SENSOR_ALERTS.md`.
 Private credentials must be provisioned separately. Recorded data lives in
 Tiger Data, not in this Git repository.

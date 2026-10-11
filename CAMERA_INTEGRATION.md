@@ -1,10 +1,10 @@
-# Camera + Gemini handoff for FoodBankSmartFridge
+# Camera and voice integration
 
 ## Read this first
 
-This is Saleh's camera/identification module, ready to merge with the teammate's existing ElevenLabs agent and frontend. The repository's original main branch contained only its project README when inspected. The partner's working ElevenLabs code may therefore exist locally or on another branch: inspect that code first and preserve it. This handoff does not claim that voice, database integration, or unattended camera capture are finished.
+The camera service provides front-camera food identification and scheduled rear-camera inventory audits. Integrate it with the application's ElevenLabs session and shared storage API. Voice integration and unattended camera capture require separate implementation and verification.
 
-**No API key, photos, camera screenshots, node_modules, or personal account configuration are included.** Saleh will supply a key privately later. You can run the tests without one. Do not ask Claude to read, print, paste, commit or embed the real `.env` in client code.
+API keys, captured photos and installed dependencies are excluded from the repository. Configure secrets locally using `.env.example`; never print, commit or embed `.env` in client code. Automated tests can run without a Gemini key.
 
 ## Accepted product plan
 
@@ -20,7 +20,7 @@ This is Saleh's camera/identification module, ready to merge with the teammate's
 cd camera-service
 npm ci
 cp .env.example .env
-# Saleh enters GEMINI_API_KEY privately in .env; never commit it.
+# Set GEMINI_API_KEY locally in .env; never commit it.
 npm run dev
 ```
 
@@ -90,7 +90,7 @@ Subscribe to `fridge-audit` in the integrated frontend and POST the results into
 
 Do not leave two tabs running the same fridge audit loop. It has no distributed scheduler or cross-tab leader election. Stop the old test page after integrating it into the main frontend.
 
-## Current limitations / next work for Claude
+## Integration checklist
 
 1. Integrate the client tool into the partner's existing ElevenLabs session and verify the voice→capture→Gemini→spoken answer flow with actual food.
 2. Move camera previews, language selection and audit controls into the teammate's UI. Handle camera reconnects, camera permission denial, busy/tool errors, and clear loading states. Keep the functional backend separate from styling.
@@ -102,7 +102,7 @@ Do not leave two tabs running the same fridge audit loop. It has no distributed 
 ## Verification completed
 
 - 14 automated API/schema/audit/tracker tests pass; type checks and browser-script syntax checks pass.
-- Both physical cameras ran simultaneously on Saleh's Mac.
+- Both physical cameras ran simultaneously on the demo Mac.
 - Gemini rear audit recognized one energy drink can and one granola bar in the tabletop demo.
 - The new retry/cadence helpers are tested; a full unattended one-hour run and ElevenLabs voice integration have not been demonstrated.
 - Google calls can fail or take seconds/tens of seconds. No speed/accuracy guarantee is made.
@@ -110,7 +110,3 @@ Do not leave two tabs running the same fridge audit loop. It has no distributed 
 ## Secrets
 
 Copy .env.example locally. GEMINI_API_KEY is server-side only. Do not use NEXT_PUBLIC_/VITE_ prefixes for it. API keys are associated with a Google project: anyone holding the key can consume its quota and possibly cause charges if billing is active. Prefer a separate Gemini-restricted teammate key, remain Free tier if required, and revoke the temporary key after the event. Sharing a Gemini key does not itself share Google sign-in, Gmail, or Drive permissions.
-
-## Prompt to give Claude Code
-
-“Read CLAUDE_HANDOFF.md and camera-service/README.md. Inspect my existing ElevenLabs agent/frontend before changing it. Integrate the dual-camera module: front camera only on the agent's identify_donation client tool, rear camera in a non-overlapping scheduled audit loop, normal hourly cadence and labeled demo mode. Persist audit results through our existing backend and update the UI automatically. Preserve the existing voice setup. Keep all keys server-side and out of Git; Saleh will enter Gemini's key privately. Clearly report what remains unimplemented, especially unattended capture, deposit verification and accuracy. Run relevant tests and demonstrate voice→camera→Gemini→voice plus successive inventory updates.”

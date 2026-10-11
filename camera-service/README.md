@@ -1,6 +1,6 @@
 # Fridge camera backend — donation check-in + hourly inventory audits
 
-Saleh's standalone camera/identification contribution. The default test page now uses **two distinct cameras simultaneously**. No database account, voice account or teammate frontend is required to test it. ElevenLabs itself is not connected yet.
+Standalone camera and food-identification service. The default test page now uses **two distinct cameras simultaneously**. No database account, voice account or teammate frontend is required to test it. ElevenLabs itself is not connected yet.
 
 ## Run
 

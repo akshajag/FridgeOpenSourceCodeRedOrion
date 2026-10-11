@@ -1,10 +1,10 @@
-# Nourish sensor conditions / ElevenLabs handoff
+# Sensor conditions and voice alert integration
 
 Implemented in the existing Tiger Data backend. Raw measurements remain saved in
 `fridge.sensor_readings`; condition flags are calculated from those measurements
 on request. They are not a separately persisted alert/event log.
 
-## Partner integration
+## API integration
 
 From your backend, poll `GET /fridges/orion-fridge-01/conditions` every two seconds
 on the local data API (`http://127.0.0.1:3200`). Use the existing private
@@ -57,7 +57,7 @@ actual readings, 03:47–03:50 UTC on October 11 (October 10 local time):
 Thresholds are explicit demo settings, not scientifically validated food safety
 limits. Firmware motion flag still uses 0.2 g; this endpoint uses
 the raw motion peak with a strictly greater than 0.20 g threshold, lowered at
-Saleh's request. The quiet peak of 0.208 g can trigger this setting; sensitivity
+the demo sensitivity setting. The quiet peak of 0.208 g can trigger this setting; sensitivity
 is higher but false alarms are possible.
 Air only alerts on an increase: lower raw readings do not mean worse quality.
 The moisture sensor measures wet contact, not relative humidity. The sensor is
@@ -73,7 +73,7 @@ readings resume after removing each stimulus.
 
 Moisture wet-trigger test confirmed: dry baseline 0; wet-contact readings
 37–118 raw, with the alert activated at 10 or higher for two seconds.
-Keep 10 as the wet-alert threshold, per Saleh's preference. Values 1–9 may
+Keep 10 as the wet-alert threshold, as configured for the demo. Values 1–9 may
 indicate slight contact wetness but do not trigger the alert. Dry recovery
 was confirmed at raw 0; this is not a humidity calibration.
 

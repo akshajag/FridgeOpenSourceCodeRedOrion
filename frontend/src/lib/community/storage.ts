@@ -1,6 +1,7 @@
 import "server-only";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { tmpdir } from "node:os";
 import {
   seedWorld,
   seedRescues,
@@ -10,7 +11,10 @@ import {
   type Refill,
   setMission,
 } from "./model";
-const directory = path.resolve(process.cwd(), "../runtime");
+// Vercel permits writes only in temporary storage; this world is demo data.
+const directory = process.env.VERCEL
+  ? path.join(tmpdir(), "nourish-community-demo")
+  : path.resolve(process.cwd(), "../runtime");
 const filename = path.join(directory, "community-demo.json");
 let queue: Promise<unknown> = Promise.resolve();
 export async function readWorld(): Promise<CommunityWorld> {

@@ -16,13 +16,15 @@ if (process.argv.includes('--list')) {
   const waitForStable=process.argv.includes('--wait-stable'),gate=new StabilityGate();
   let baselineStartedAt=null,lastStabilityLog=0;
   if(waitForStable)writeFileSync(waitingFile,JSON.stringify({started_at:new Date().toISOString(),window_seconds:300,max_range_c:0.5,max_slope_c_per_minute:0.1}));
-  let port, buffer='', writing=false,lastSaved=0,stopping=false,reconnect;
+  let port, buffer='', writing=false,lastSaved=0,stopping=false,reconnect,lastDiagnostic=0;
   const interval=Number(process.env.SENSOR_INTERVAL_MS || 5000);
   let pendingMotionPeak=0,pendingMovement=false;
   if (!Number.isFinite(interval) || interval<1000) throw new Error('SENSOR_INTERVAL_MS must be at least 1000');
   async function line(text) {
     const reading=parseSensorLine(text.trim());
+    if(!reading&&Date.now()-lastDiagnostic>15000){console.log('Arduino diagnostic (not saved):',text.trim().slice(0,250));lastDiagnostic=Date.now();}
     if (existsSync(pauseFile) || !reading) return;
+    const sampledAt=new Date();
     writeFileSync(liveFile,JSON.stringify({captured_at:new Date().toISOString(),...reading}));
     if(waitForStable&&!baselineStartedAt){
       const status=gate.add(Date.now(),reading.temperature_c);
@@ -42,9 +44,9 @@ if (process.argv.includes('--list')) {
     writing=true;
     try {
       await pool.query(`INSERT INTO fridge.sensor_readings(captured_at,event_id,fridge_id,device_id,temperature_c,moisture_raw,air_quality_raw,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [new Date(),randomUUID(),process.env.FRIDGE_ID||'orion-fridge-01',process.env.DEVICE_ID||'arduino-uno-r4',reading.temperature_c,reading.moisture_raw,reading.air_quality_raw,{source:'usb_serial',calibration:'raw_unvalidated',recording_phase:waitForStable?'stable_baseline':'monitoring',baseline_started_at:baselineStartedAt,...motionMetadata}]);
-      lastSaved=Date.now(); console.log('Saved real sensor reading',reading);
-    } catch { console.error('Database write failed; readings are not buffered. Will retry on a later fresh reading.'); lastSaved=Date.now(); }
+        [sampledAt,randomUUID(),process.env.FRIDGE_ID||'orion-fridge-01',process.env.DEVICE_ID||'arduino-uno-r4',reading.temperature_c,reading.moisture_raw,reading.air_quality_raw,{source:'usb_serial',calibration:'raw_unvalidated',recording_phase:waitForStable?'stable_baseline':'monitoring',baseline_started_at:baselineStartedAt,...motionMetadata}]);
+      lastSaved=sampledAt.getTime(); console.log('Saved real sensor reading',reading);
+    } catch { console.error('Database write failed; readings are not buffered. Will retry on a later fresh reading.'); lastSaved=sampledAt.getTime(); }
     finally { writing=false; }
   }
   function connect() {

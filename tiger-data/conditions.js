@@ -54,8 +54,8 @@ export function conditionMetrics(rows,baseline,{now=new Date(),windowSeconds=300
   ];
   const conditions=definitions.map(([key,label,predicate,seconds,value,threshold,unit])=>({key,label,...sustained(key,predicate,seconds),value:valid(latest,key)?value:null,threshold,unit,persistence_seconds:seconds}));
   // Keep a brief movement visible even if the fridge has stopped moving.
-  const motion=points.filter(p=>p.t>=end-10000&&valid(p,'movement')&&p.row.metadata.motion_peak_g>=limits.movement).at(-1);
-  conditions.push({key:'movement',label:'Movement detected',state:channels.movement.status!=='reporting'?'unknown':motion?'alert':'normal',since:motion?new Date(motion.t).toISOString():null,value:valid(latest,'movement')?latest.row.metadata.motion_peak_g:null,recent_peak_g:motion?.row.metadata.motion_peak_g??null,threshold:limits.movement,unit:'g',hold_seconds:10});
+  const motion=points.filter(p=>p.t>=end-10000&&valid(p,'movement')&&p.row.metadata.motion_peak_g>limits.movement).at(-1);
+  conditions.push({key:'movement',label:'Movement detected',state:channels.movement.status!=='reporting'?'unknown':motion?'alert':'normal',since:motion?new Date(motion.t).toISOString():null,value:valid(latest,'movement')?latest.row.metadata.motion_peak_g:null,recent_peak_g:motion?.row.metadata.motion_peak_g??null,threshold:limits.movement,comparison:'>',unit:'g',hold_seconds:10});
   const alerts=conditions.filter(c=>c.state==='alert');
   return {
     evaluated_at:new Date(end).toISOString(),baseline,

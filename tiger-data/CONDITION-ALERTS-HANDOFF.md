@@ -52,11 +52,13 @@ actual readings, 03:47–03:50 UTC on October 11 (October 10 local time):
 | Temperature | −17.2 °C | ≥ −15.2 °C (+2 °C rise) | 5 seconds |
 | Contact moisture | 0 raw | ≥ 10 raw | 2 seconds |
 | Air sensor | 51 raw | ≥ 81 raw | 2 seconds |
-| Accelerometer motion peak | quiet peak ≤ 0.208 g | ≥ 0.25 g | one reading, held 10 seconds |
+| Accelerometer motion peak | quiet peak ≤ 0.208 g | > 0.20 g | one reading, held 10 seconds |
 
 Thresholds are explicit demo settings, not scientifically validated food safety
-limits. Firmware motion flag still uses 0.2 g; this endpoint deliberately uses
-the raw motion peak with a 0.25 g threshold to avoid the observed quiet noise.
+limits. Firmware motion flag still uses 0.2 g; this endpoint uses
+the raw motion peak with a strictly greater than 0.20 g threshold, lowered at
+Saleh's request. The quiet peak of 0.208 g can trigger this setting; sensitivity
+is higher but false alarms are possible.
 Air only alerts on an increase: lower raw readings do not mean worse quality.
 The moisture sensor measures wet contact, not relative humidity. The sensor is
 an accelerometer, not a gyro, and a bump does not prove theft. Constant-speed

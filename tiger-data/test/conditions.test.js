@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {conditionMetrics} from '../conditions.js';
-const baseline={temperature_c:-17.2,moisture_raw:0,air_quality_raw:51,thresholds:{temperature_rise_c:2,moisture_increase_raw:10,air_increase_raw:30,motion_peak_g:0.25}};
+const baseline={temperature_c:-17.2,moisture_raw:0,air_quality_raw:51,thresholds:{temperature_rise_c:2,moisture_increase_raw:10,air_increase_raw:30,motion_peak_g:0.2}};
 const end=Date.parse('2026-10-11T04:00:00Z');
 const row=(seconds,overrides={})=>({captured_at:new Date(end+seconds*1000).toISOString(),temperature_c:-17.2,moisture_raw:0,air_quality_raw:51,metadata:{accelerometer_available:true,motion_peak_g:0.1},...overrides});
 const metrics=rows=>conditionMetrics(rows,baseline,{now:new Date(end)});
@@ -33,10 +33,11 @@ test('stale data never returns reassuring normal conditions',()=>{
 test('a gap resets temperature persistence',()=>{
   assert.equal(state(metrics([row(-100,{temperature_c:-14}),row(0,{temperature_c:-14})]),'temperature'),'pending');
 });
-test('movement is held briefly then clears; noise below 0.25g does not alert',()=>{
+test('movement is held briefly then clears; 0.20g boundary is excluded and 0.208g triggers',()=>{
   assert.equal(state(metrics([row(-5,{metadata:{accelerometer_available:true,motion_peak_g:0.3}}),row(0)]),'movement'),'alert');
   assert.equal(state(metrics([row(-11,{metadata:{accelerometer_available:true,motion_peak_g:0.3}}),row(0)]),'movement'),'normal');
-  assert.equal(state(metrics([row(0,{metadata:{accelerometer_available:true,motion_peak_g:0.208}})]),'movement'),'normal');
+  assert.equal(state(metrics([row(0,{metadata:{accelerometer_available:true,motion_peak_g:0.2}})]),'movement'),'normal');
+  assert.equal(state(metrics([row(0,{metadata:{accelerometer_available:true,motion_peak_g:0.208}})]),'movement'),'alert');
 });
 test('conflicting duplicate timestamp invalidates that instant',()=>{
   const m=metrics([row(-1),row(0),row(0,{temperature_c:10})]);assert.equal(m.monitoring_confidence_percent,0);assert.equal(state(m,'temperature'),'unknown');

@@ -23,7 +23,7 @@
     "temperature_rise_c": 2,
     "moisture_increase_raw": 10,
     "air_increase_raw": 30,
-    "motion_peak_g": 0.25
+    "motion_peak_g": 0.2
   },
   "note": "Temperature range -17.30 to -16.94 C; air range 50 to 51; moisture 0. Quiet motion peak reached 0.208 g. Demo thresholds require physical validation; not food safety limits.",
   "air_test": {
@@ -48,6 +48,9 @@
     "second_trial_peak_g": 0.269,
     "alert_threshold_g": 0.25,
     "recovery_peak_g": 0.135,
-    "interpretation": "Controlled cart start/stop crossed the threshold in one recorded sample. Gentle roll did not. Does not establish reliable theft detection."
+    "interpretation": "Controlled cart start/stop crossed the threshold in one recorded sample. Gentle roll did not. Does not establish reliable theft detection.",
+    "current_alert_threshold_g": 0.2,
+    "current_alert_comparison": "strictly_greater_than",
+    "sensitivity_note": "Lowered at user request. Observed quiet peak of 0.208 g can trigger this setting."
   }
 }

@@ -15,7 +15,7 @@ async function refreshConditions(){
       if(c.state==='alert')card.style.borderColor='#b34530';
       const title=document.createElement('div');title.textContent=c.label;
       const state=document.createElement('strong');state.style.fontSize='22px';state.textContent={alert:'ALERT',normal:'Within limits',pending:'Checking…',unknown:'Unknown'}[c.state];
-      const detail=document.createElement('p');detail.textContent=`${c.value===null?'Unavailable':c.value.toFixed(2)+' '+c.unit} · trigger ≥ ${c.threshold.toFixed(2)} ${c.unit}`;
+      const detail=document.createElement('p');detail.textContent=`${c.value===null?'Unavailable':c.value.toFixed(2)+' '+c.unit} · trigger ${c.comparison||'≥'} ${c.threshold.toFixed(2)} ${c.unit}`;
       const quality=document.createElement('small');quality.textContent=`Data coverage: ${m.channels[c.key].coverage_percent.toFixed(1)}%${c.key==='movement'&&c.recent_peak_g!==null?' · recent peak '+c.recent_peak_g.toFixed(3)+' g':''}`;
       card.append(title,state,detail,quality);container.append(card);
     }

@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-let token='',timer,busy=false;
+let busy=false;
 const format=n=>n.toLocaleString(undefined,{maximumFractionDigits:2});
 function svgNode(tag,attributes,text){const node=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [key,value] of Object.entries(attributes))node.setAttribute(key,value);if(text!==undefined)node.textContent=text;return node;}
 function chart(m){
@@ -18,13 +18,13 @@ function chart(m){
   $('chart-note').textContent='Green segments are covered intervals. Blank stretches are unknown; they are not bridged.';
 }
 async function refresh(){
-  if(!token||busy)return;busy=true;
+  if(busy)return;busy=true;
   try{
     const end=new Date(),start=new Date(+end-Number($('window').value)*60000);
     const q=new URLSearchParams({start:start.toISOString(),end:end.toISOString(),threshold_c:$('threshold').value});
-    const response=await fetch(`/fridges/${encodeURIComponent($('fridge').value)}/thermal?${q}`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
-    if(!response.ok)throw new Error(response.status===401?'Token was not accepted.':`Metrics request failed (${response.status}); check the API/database connection.`);
-    const m=await response.json();$('dashboard').hidden=false;$('connect').hidden=true;$('error').textContent='';
+    const response=await fetch(`/fridges/${encodeURIComponent($('fridge').value)}/thermal?${q}`,{credentials:'same-origin',cache:'no-store'});
+    if(!response.ok)throw new Error(response.status===401?'Refresh this page to reconnect.':`Metrics request failed (${response.status}); check the API/database connection.`);
+    const m=await response.json();$('error').textContent='';
     $('exposure').textContent=m.covered_minutes?format(m.observed_exposure_c_minutes):'Unknown';
     $('above').textContent=m.covered_minutes?format(m.observed_minutes_above_threshold):'Unknown';
     $('coverage').textContent=`${format(m.coverage_fraction*100)}%`;$('coverage-meter').value=m.coverage_fraction;
@@ -36,7 +36,7 @@ async function refresh(){
   }catch(error){$('error').textContent=error.message;if(!$('dashboard').hidden)$('status').textContent='Refresh failed. Displayed values are from the last successful update.';}
   finally{busy=false;}
 }
-$('connect').addEventListener('submit',async event=>{event.preventDefault();token=$('token').value;$('token').value='';await refresh();clearInterval(timer);timer=setInterval(refresh,10000);});
 $('refresh').addEventListener('click',refresh);
 for(const id of ['window','threshold','fridge'])$(id).addEventListener('change',refresh);
-$('disconnect').addEventListener('click',()=>{clearInterval(timer);token='';$('dashboard').hidden=true;$('connect').hidden=false;$('error').textContent='';});
+void refresh();
+setInterval(refresh,10000);

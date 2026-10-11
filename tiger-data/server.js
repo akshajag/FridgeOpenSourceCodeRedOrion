@@ -5,15 +5,29 @@ import {makePool} from './db.js';
 import {fileURLToPath} from 'node:url';
 import {getThermalMetrics} from './thermal-query.js';
 const pool=makePool(), app=express();
+// Automatic localhost dashboard sessions can read thermal metrics only.
+// They never grant the browser the backend token or permission to write data.
+const monitorSessions=new Map();
 if(!process.env.DATA_API_TOKEN)throw new Error('DATA_API_TOKEN required');
 app.disable('x-powered-by');app.use(express.json({limit:'256kb'}));
 app.get('/health',async(_req,res)=>{try{await pool.query('SELECT 1');res.json({ok:true,database:'connected'});}catch{res.status(503).json({ok:false,database:'unavailable'});}});
-app.get('/monitor',(_req,res)=>{
+app.get('/monitor',(req,res)=>{
+  if(!['127.0.0.1','localhost'].includes(req.hostname))return res.sendStatus(403);
+  for(const [id,expires] of monitorSessions)if(expires<Date.now())monitorSessions.delete(id);
+  if(monitorSessions.size>=128)monitorSessions.delete(monitorSessions.keys().next().value);
+  const session=randomUUID();monitorSessions.set(session,Date.now()+3600000);
+  res.cookie('fridge_monitor',session,{httpOnly:true,sameSite:'strict',maxAge:3600000,path:'/'});
+  res.set('Cache-Control','no-store');
   res.set('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none'");
   res.sendFile(fileURLToPath(new URL('./public/monitor.html',import.meta.url)));
 });
 app.get('/monitor.js',(_req,res)=>res.sendFile(fileURLToPath(new URL('./public/monitor.js',import.meta.url))));
 app.use((req,res,next)=>{
+  const session=(req.get('cookie')||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('fridge_monitor='))?.slice('fridge_monitor='.length);
+  if(req.method==='GET' && /^\/fridges\/[^/]+\/thermal$/.test(req.path)
+    && ['127.0.0.1','localhost'].includes(req.hostname)
+    && req.get('sec-fetch-site')==='same-origin'
+    && (monitorSessions.get(session)||0)>Date.now())return next();
   const supplied=Buffer.from(req.get('authorization')||''),expected=Buffer.from(`Bearer ${process.env.DATA_API_TOKEN}`);
   if(supplied.length!==expected.length || !timingSafeEqual(supplied,expected))return res.status(401).json({error:'unauthorized'});
   next();

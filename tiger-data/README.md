@@ -14,6 +14,8 @@ Database created: **foodbank-smart-fridge**, service `ym0p9v6xv2`, project `szwh
 
 ## Start in Cursor
 
+For an initial stable baseline, run `npm run sensors -- --wait-stable` with `.sensor-paused` removed. It monitors locally without database writes until a full five-minute window has temperature range ≤0.5°C, absolute least-squares trend ≤0.1°C/min and no sample gaps over 15 seconds. These are provisional engineering settings, not a validated fridge specification. Once the initial gate passes, all later temperatures are recorded, including genuine excursions; unstable readings must not be censored during normal monitoring. Disconnects/missing samples restart the initial window. Existing startup readings have `metadata.recording_phase='cooldown'` and are excluded from the thermal endpoint, but remain in the raw sensor table. New readings are tagged `stable_baseline` with a baseline start timestamp. The live view shows when the local gate is waiting. Historical coverage shown is coverage of the selected baseline data, not of excluded startup measurements.
+
 Collection on Saleh's Mac is deliberately paused until the sensors are in the fridge and he says **ready**. A local ignored `.sensor-paused` file blocks bridge startup and further writes. Keep it in place during bench testing. To pause an existing bridge, create this file and stop the bridge; an already in-flight write may finish. Remove the file only when explicitly ready to collect, then start the sensor task. `npm run verify` performs temporary database writes, so do not run that task when all database writes must stay paused.
 
 Open `FOODBANK.code-workspace`. Run tasks through Terminal → Run Task:

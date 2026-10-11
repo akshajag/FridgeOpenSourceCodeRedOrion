@@ -4,6 +4,7 @@ import {z} from 'zod';
 import {makePool} from './db.js';
 import {fileURLToPath} from 'node:url';
 import {getThermalMetrics} from './thermal-query.js';
+import {existsSync} from 'node:fs';
 const pool=makePool(), app=express();
 // Automatic localhost dashboard sessions can read thermal metrics only.
 // They never grant the browser the backend token or permission to write data.
@@ -39,7 +40,8 @@ app.get('/fridges/:id/thermal',async(req,res)=>{
   const end=q.end?new Date(q.end):new Date(),start=q.start?new Date(q.start):new Date(+end-3600000);
   if(+end> Date.now()+1000 || +end<=+start || +end-+start>7*86400000)return res.status(400).json({error:'window_must_be_past_positive_and_at_most_7_days'});
   res.set('Cache-Control','no-store');
-  res.json(await getThermalMetrics(pool,{fridgeId:fridge.parse(req.params.id),deviceId:q.device_id||process.env.DEVICE_ID||'arduino-uno-r4',start,end,thresholdC:q.threshold_c,maxGapSeconds:q.max_gap_seconds,staleSeconds:q.stale_seconds}));
+  const metrics=await getThermalMetrics(pool,{fridgeId:fridge.parse(req.params.id),deviceId:q.device_id||process.env.DEVICE_ID||'arduino-uno-r4',start,end,thresholdC:q.threshold_c,maxGapSeconds:q.max_gap_seconds,staleSeconds:q.stale_seconds});
+  res.json({...metrics,collection_phase:existsSync(new URL('.sensor-waiting',import.meta.url))?'waiting_for_stability':existsSync(new URL('.sensor-paused',import.meta.url))?'paused':'collection_enabled',excluded_phase:'cooldown'});
 });
 const url=z.string().url().refine(s=>s.startsWith('https://'),'Use HTTPS').nullable().optional();
 const product=z.object({id:uuid.optional(),canonical_name:z.string().min(1).max(200),barcode:z.string().regex(/^\d{8,14}$/).nullable().optional(),brand:z.string().max(200).nullable().optional(),variant:z.string().max(200).nullable().optional(),package_size:z.string().max(100).nullable().optional(),display_image_url:url,image_source_url:url,match_method:z.enum(['barcode','visual','manual','generic']),metadata:json.default({})});

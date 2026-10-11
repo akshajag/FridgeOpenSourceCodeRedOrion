@@ -29,7 +29,7 @@ async function refresh(){
     $('above').textContent=m.covered_minutes?format(m.observed_minutes_above_threshold):'Unknown';
     $('coverage').textContent=`${format(m.coverage_fraction*100)}%`;$('coverage-meter').value=m.coverage_fraction;
     $('unknown').textContent=`${format(m.unmonitored_minutes)} minutes unmonitored`;$('gap').textContent=format(m.longest_missing_interval_minutes);
-    $('status').textContent=m.sensor_status==='reporting'?'Sensor is reporting.':m.sensor_status==='stale'?'Sensor is stale: readings have stopped arriving.':m.sensor_status==='invalid_latest'?'Latest temperature is invalid; monitoring is interrupted.':'No sensor data. Collection may be paused.';
+    $('status').textContent=m.collection_phase==='waiting_for_stability'?'Waiting for five minutes of stable temperature. Database recording has not started; cooldown readings are excluded.':m.collection_phase==='paused'?'Collection is paused.':m.sensor_status==='reporting'?'Sensor is reporting.':m.sensor_status==='stale'?'Sensor is stale: readings have stopped arriving.':m.sensor_status==='invalid_latest'?'Latest temperature is invalid; monitoring is interrupted.':'No sensor data. Collection may be paused.';
     $('average').textContent=`Time-weighted mean over covered intervals: ${m.time_weighted_temperature_c===null?'unknown':format(m.time_weighted_temperature_c)+' °C'}. Valid samples: ${m.valid_sample_count}; invalid samples: ${m.invalid_sample_count}.`;
     $('updated').textContent=`Updated ${new Date().toLocaleTimeString()} · ${m.device_id} · last valid sample: ${m.last_valid_reading_at?new Date(m.last_valid_reading_at).toLocaleString():'none'}`;
     chart(m);

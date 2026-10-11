@@ -23,7 +23,7 @@ export function riskAssessment(
   };
   const recommendations = {
     temperature:
-      "Check cooling power and the temperature probe. The reference is the recorded freezer baseline.",
+      "Check cooling power and the temperature probe. The reference is the configured demo temperature baseline.",
     moisture: "Inspect the probe and fridge floor for water or a spill.",
     air: "Inspect for vapors or a changed environment. This sensor does not identify spoiled food.",
     movement:

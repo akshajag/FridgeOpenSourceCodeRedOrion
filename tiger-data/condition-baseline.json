@@ -16,7 +16,7 @@
     "interpretation": "Positive readings indicate possible wet contact; alert at 10 or higher for two seconds. This measures contact wetness, not humidity or food safety.",
     "dry_recovery_observed_at": "2026-10-11T04:38:29.768Z"
   },
-  "temperature_c": -17.2,
+  "temperature_c": 14.2,
   "moisture_raw": 0,
   "air_quality_raw": 51,
   "thresholds": {
@@ -25,7 +25,7 @@
     "air_increase_raw": 30,
     "motion_peak_g": 0.2
   },
-  "note": "Temperature range -17.30 to -16.94 C; air range 50 to 51; moisture 0. Quiet motion peak reached 0.208 g. Demo thresholds require physical validation; not food safety limits.",
+  "note": "Temperature demo reference reset to a fresh current reading at user request. Original freezer reference preserved separately. Other sensor baselines and thresholds unchanged.",
   "air_test": {
     "status": "vapor_trigger_and_alert_clear_confirmed",
     "baseline_raw_range": [
@@ -52,5 +52,16 @@
     "current_alert_threshold_g": 0.2,
     "current_alert_comparison": "strictly_greater_than",
     "sensitivity_note": "Lowered at user request. Observed quiet peak of 0.208 g can trigger this setting."
+  },
+  "original_temperature_reference": {
+    "temperature_c": -17.2,
+    "baseline_start": "2026-10-11T03:47:00.000Z",
+    "baseline_end": "2026-10-11T03:50:00.000Z"
+  },
+  "temperature_reference": {
+    "status": "user_reset_demo_reference",
+    "captured_at": "2026-10-11T16:40:11.038Z",
+    "sample_count": 1,
+    "purpose": "Relative anomaly demonstration, not a food-safety threshold"
   }
 }

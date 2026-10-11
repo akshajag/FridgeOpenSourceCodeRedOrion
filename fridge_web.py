@@ -53,12 +53,12 @@ class FridgeWebUI:
                             started=time.monotonic();frame=camera.get_frame()
                             if frame is not None:
                                 height,width=frame.shape[:2]
-                                if width>800:frame=cv2.resize(frame,(800,round(height*800/width)))
-                                ok,image=cv2.imencode('.jpg',frame,[cv2.IMWRITE_JPEG_QUALITY,65])
+                                if width>640:frame=cv2.resize(frame,(640,round(height*640/width)))
+                                ok,image=cv2.imencode('.jpg',frame,[cv2.IMWRITE_JPEG_QUALITY,50])
                                 if ok:
                                     payload=image.tobytes()
                                     self.wfile.write(b'--frame\r\nContent-Type: image/jpeg\r\nContent-Length: '+str(len(payload)).encode()+b'\r\n\r\n'+payload+b'\r\n');self.wfile.flush()
-                            time.sleep(max(0,1/15-(time.monotonic()-started)))
+                            time.sleep(max(0,1/8-(time.monotonic()-started)))
                     except (BrokenPipeError,ConnectionResetError,OSError):pass
                     return
                 if self.path in ('/frame/front','/frame/shelf'):

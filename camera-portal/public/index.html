@@ -3,10 +3,24 @@
 </style><header>Nourish.</header><main><h1>Fridge donation station</h1><p>Camera, voice and shelf verification for the connected fridge.</p><section id="pair" class="card"><h2>Connect this screen</h2><p>Enter the private device access code from the fridge Mac.</p><form id="connect"><input id="code" type="password" autocomplete="off" placeholder="Device access code" required><button>Connect</button></form><p id="error" role="alert"></p></section><div id="app" hidden><div class="grid"><section class="card"><h2>Donation camera</h2><img id="front" alt="Front donation camera"></section><section class="card"><h2>Inside the fridge</h2><img id="shelf" alt="Back shelf camera"></section></div><section class="card"><button id="begin">Start conversation</button><button id="finish">Finish / next person</button><button id="audit">Check shelf now</button><p>Speak near the fridge Mac’s microphone after Nourish finishes speaking. Audio plays through its selected speaker. This screen controls that device.</p><p id="status" role="status"></p><form id="say"><input id="message" placeholder="Or type your reply…" maxlength="1500" required><button>Send</button></form></section></div></main><script>
 const $=id=>document.getElementById(id);let connected=false,busy=false;
 async function api(path,body){const r=await fetch('/api/'+path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});const data=await r.json();if(!r.ok)throw new Error(data.error||'Request failed');return data;}
-async function state(){if(busy)return;busy=true;try{const s=await api('state');connected=true;$('pair').hidden=true;$('app').hidden=false;$('status').textContent=[s.status,s.user&&'You: '+s.user,s.agent&&'Nourish: '+s.agent,s.product,s.notice,s.donation,s.inventory,s.inventory_alert].filter(Boolean).join('\n');$('begin').disabled=s.active;}catch(e){if(!connected)$('error').textContent=e.message;else $('status').textContent=e.message;}finally{busy=false;}}
+async function state(){if(busy)return;busy=true;try{const s=await api('state');connected=true;$('pair').hidden=true;$('app').hidden=false;$('status').textContent=[s.status,s.user&&'You: '+s.user,s.agent&&'Nourish: '+s.agent,s.product,s.notice,s.donation,s.inventory,s.inventory_alert].filter(Boolean).join('\n');$('begin').disabled=s.active;startPreviews();}catch(e){if(!connected)$('error').textContent=e.message;else $('status').textContent=e.message;}finally{busy=false;}}
 $('connect').onsubmit=async e=>{e.preventDefault();try{await api('connect',{code:$('code').value});$('code').value='';await state();}catch(e){$('error').textContent=e.message;}};
 for(const action of ['begin','finish','audit'])$(action).onclick=async()=>{try{await api(action,{});await state();}catch(e){$('status').textContent=e.message;}};
 $('say').onsubmit=async e=>{e.preventDefault();try{await api('say',{text:$('message').value});$('message').value='';}catch(e){$('status').textContent=e.message;}};
-async function frame(id){if(!connected||document.hidden)return;try{const r=await fetch('/api/frame/'+id,{cache:'no-store'});if(!r.ok)return;const url=URL.createObjectURL(await r.blob()),img=$(id),old=img.src;img.src=url;if(old.startsWith('blob:'))URL.revokeObjectURL(old);}catch{}}
-setInterval(state,1500);setInterval(()=>{frame('front');frame('shelf');},1500);state();
+const previews=new Map();
+function stopPreviews(){for(const [id,timer] of previews){clearTimeout(timer);$(id).removeAttribute('src');}previews.clear();}
+function startPreviews(){
+ if(!connected||document.hidden)return;
+ for(const id of ['front','shelf']){
+  if(previews.has(id))continue;
+  const img=$(id);
+  function restart(delay=22000){clearTimeout(previews.get(id));previews.set(id,setTimeout(()=>{
+   previews.delete(id);startPreviews();
+  },delay));}
+  img.onerror=()=>restart(1500);
+  img.src='/api/stream/'+id+'?t='+Date.now();restart();
+ }
+}
+document.addEventListener('visibilitychange',()=>document.hidden?stopPreviews():startPreviews());
+setInterval(()=>{if(!document.hidden)state();},1500);state();
 </script></html>

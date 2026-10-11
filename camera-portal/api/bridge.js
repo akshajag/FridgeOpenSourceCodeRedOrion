@@ -17,10 +17,30 @@ export default async function handler(req,res){
  const ticket=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('nourish-camera='))?.slice(15);
  const [expiry,sig]=String(ticket||'').split('.');
  if(!process.env.FRIDGE_DEVICE_KEY||!/^\d+$/.test(expiry||'')||Number(expiry)<=Date.now()||!equal(sig,signature(expiry))){res.status(401).json({error:'Connect this fridge device first'});return;}
- const get=['state','frame/front','frame/shelf'],post=['begin','finish','say','audit'];
+ const get=['state','frame/front','frame/shelf','stream/front','stream/shelf'],post=['begin','finish','say','audit'];
  if(!(req.method==='GET'?get: req.method==='POST'?post:[]).includes(path)){res.status(404).json({error:'Not found'});return;}
+ const streaming=path.startsWith('stream/');
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),streaming?25000:12000);
+ res.on('close',()=>controller.abort());
  try{
-  const upstream=await fetch(process.env.FRIDGE_CAMERA_BASE_URL+'/'+path,{method:req.method,headers:{Authorization:'Bearer '+process.env.FRIDGE_DATA_TOKEN,'Content-Type':'application/json'},...(req.method==='POST'?{body:JSON.stringify(path==='begin'?{}:req.body||{})}:{}),signal:AbortSignal.timeout(12000)});
-  res.status(upstream.status);res.setHeader('Content-Type',upstream.headers.get('content-type')||'application/json');res.end(Buffer.from(await upstream.arrayBuffer()));
- }catch{res.status(503).json({error:'Fridge Mac is offline. Keep its camera process and secure tunnel running.'});}
+  const upstream=await fetch(process.env.FRIDGE_CAMERA_BASE_URL+'/'+path,{method:req.method,headers:{Authorization:'Bearer '+process.env.FRIDGE_DATA_TOKEN,'Content-Type':'application/json'},...(req.method==='POST'?{body:JSON.stringify(path==='begin'?{}:req.body||{})}:{}),signal:controller.signal});
+  res.status(upstream.status);res.setHeader('Content-Type',upstream.headers.get('content-type')||'application/json');if(!streaming||!upstream.ok){res.end(Buffer.from(await upstream.arrayBuffer()));return;}
+  res.setHeader('X-Accel-Buffering','no');
+  res.flushHeaders();
+  const reader=upstream.body.getReader();let bytes=0;
+  try{
+   while(!controller.signal.aborted){
+    const {done,value}=await reader.read();if(done)break;
+    bytes+=value.byteLength;
+    // Reconnect before function duration and response-size limits.
+    if(bytes>3500000)break;
+    if(!res.write(Buffer.from(value))){await new Promise(resolve=>{
+     const finish=()=>{res.off('drain',finish);res.off('close',finish);resolve();};
+     res.once('drain',finish);res.once('close',finish);
+    });}
+   }
+  }finally{await reader.cancel().catch(()=>{});res.end();}
+ }catch{if(!res.headersSent)res.status(503).json({error:'Fridge Mac is offline. Keep its camera process and secure tunnel running.'});else res.end();}
+ finally{clearTimeout(timer);controller.abort();}
 }

@@ -4,7 +4,7 @@ Two independent Vercel projects use the same hardware/data backend:
 - `nourish-dashboard-orion`: original Next.js dashboard (`frontend/`).
 - `nourish-camera-orion`: separate camera and voice control screen (`camera-portal/`).
 
-The Python camera/voice engine and Arduino reader still run on the fridge Mac. Vercel cannot directly open its USB hardware. The camera screen displays frames captured by that Mac; microphone input and speaker audio remain on the Mac. The screen can start/end a conversation, send a typed reply and request a shelf check.
+The Python camera/voice engine and Arduino reader still run on the fridge Mac. Vercel cannot directly open its USB hardware. The camera screen uses authenticated multipart JPEG preview streams captured by that Mac (640 pixels wide, up to eight frames per second); microphone input and speaker audio remain on the Mac. The screen can start/end a conversation, send a typed reply and request a shelf check.
 
 Run `.venv/bin/python run_fridge.py --voice --web` from the repository root. It starts the local Tiger API and camera bridge. The original native camera window must be closed first to avoid opening webcams twice.
 
@@ -19,3 +19,5 @@ The camera page requires the private device pairing code and sets an eight-hour 
 Every 30 seconds the fixed Logitech camera captures a fresh shelf frame, Gemini analyzes it and the audit is stored in Tiger Data. A slow request delays the next scan; calls never overlap. Provider failures remain unavailable records. The website polls stored results every five seconds and labels last successful observations after failed checks. Camera observations do not automatically erase confirmed donation records.
 
 A quick Cloudflare tunnel URL changes when that tunnel is restarted. Update both Vercel base URLs and redeploy after such a restart. Keep the Mac awake, Arduino connected and gateway/tunnel running throughout the demo; hosted hardware features become unavailable when the Mac is offline. This is a demo connection, not an unattended production deployment.
+
+Preview streams reconnect before the Vercel function duration/response-size limits and pause when the browser tab is hidden. Recognition, barcode/date reading and shelf audits continue to use full-resolution camera frames; preview compression does not change those inputs. Disconnecting a browser stream cancels the upstream request.

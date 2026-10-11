@@ -15,4 +15,5 @@ http.createServer((req,res)=>{
  const upstream=http.request({hostname:'127.0.0.1',port:camera?3201:3200,path,method:req.method,headers:{...req.headers,host:'127.0.0.1',authorization:'Bearer '+token}},r=>{res.writeHead(r.statusCode,r.headers);r.pipe(res);});
  upstream.on('error',()=>{if(!res.headersSent)res.writeHead(503);res.end('Fridge device offline');});req.pipe(upstream);
  req.on('aborted',()=>upstream.destroy());
+ res.on('close',()=>upstream.destroy());
 }).listen(3210,'127.0.0.1',()=>console.log('Authenticated hardware gateway ready on localhost:3210'));

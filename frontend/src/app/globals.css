@@ -1,0 +1,181 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Fridgey design tokens.
+  Palette is derived from refrigerated food (stone-green surfaces, cold sensor blue),
+  community infrastructure (deep evergreen ink) and monitoring states (amber / red).
+*/
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-archivo), var(--font-plex), ui-sans-serif, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --font-heading: var(--font-display);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* Brand + monitoring semantics */
+  --color-evergreen: var(--evergreen);
+  --color-evergreen-deep: var(--evergreen-deep);
+  --color-sage: var(--sage);
+  --color-sage-deep: var(--sage-deep);
+  --color-stone: var(--stone);
+  --color-sensor: var(--sensor);
+  --color-sensor-soft: var(--sensor-soft);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-critical: var(--critical);
+  --color-critical-soft: var(--critical-soft);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-hairline: var(--hairline);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --radius-4xl: 28px;
+
+  --shadow-panel: 0 1px 2px rgb(32 55 47 / 0.04), 0 1px 1px rgb(32 55 47 / 0.03);
+  --shadow-raised: 0 1px 2px rgb(32 55 47 / 0.06), 0 8px 24px -12px rgb(32 55 47 / 0.18);
+  --shadow-overlay: 0 1px 2px rgb(32 55 47 / 0.08), 0 24px 48px -16px rgb(32 55 47 / 0.28);
+}
+
+:root {
+  color-scheme: light;
+
+  --stone: #f3f5f2;
+  --ink: #20372f;
+  --ink-muted: #5c6e66;
+  --ink-faint: #8b9a93;
+  --evergreen: #316b54;
+  --evergreen-deep: #27584a;
+  --sage: #dce7df;
+  --sage-deep: #c6d6cb;
+  --sensor: #427da8;
+  --sensor-soft: #e4eef6;
+  --amber: #b97835;
+  --amber-soft: #f6ecdd;
+  --critical: #b84f48;
+  --critical-soft: #f6e3e1;
+  --hairline: #d9e1db;
+
+  --background: var(--stone);
+  --foreground: var(--ink);
+  --card: #ffffff;
+  --card-foreground: var(--ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--ink);
+  --primary: var(--evergreen);
+  --primary-foreground: #f6f9f6;
+  --secondary: var(--sage);
+  --secondary-foreground: var(--ink);
+  --muted: #e9eeea;
+  --muted-foreground: var(--ink-muted);
+  --accent: #e6ede8;
+  --accent-foreground: var(--ink);
+  --destructive: var(--critical);
+  --border: var(--hairline);
+  --input: #cfd9d2;
+  --ring: var(--evergreen);
+  --chart-1: #2f7fbf;
+  --chart-2: #c9801f;
+  --chart-3: #2e8b5b;
+  --chart-4: #7a6cb0;
+  --chart-5: #8b9a93;
+  --radius: 8px;
+  --sidebar: #edf1ee;
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--evergreen);
+  --sidebar-primary-foreground: #f6f9f6;
+  --sidebar-accent: #e0e8e2;
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--evergreen);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    font-feature-settings: "ss01", "cv11";
+  }
+  body {
+    @apply bg-background text-foreground;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  p { text-wrap: pretty; }
+  button, [role="button"], a { touch-action: manipulation; }
+  select { background: var(--card); color: var(--foreground); }
+  ::selection { background: var(--sage-deep); color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--evergreen); outline-offset: 2px; }
+  [data-slot="input"], [data-slot="select-trigger"], [data-slot="textarea"] {
+    background: var(--card);
+  }
+}
+
+@layer components {
+  .font-display { font-family: var(--font-display); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .readout { font-family: var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+  .panel { @apply rounded-xl border border-border bg-card shadow-panel; }
+  .hairline-top { box-shadow: inset 0 1px 0 var(--hairline); }
+  .scrollbar-thin { scrollbar-width: thin; scrollbar-color: var(--sage-deep) transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* MapLibre overrides so the map chrome matches the product. */
+.maplibregl-ctrl-group { border-radius: 8px; box-shadow: var(--shadow-panel); border: 1px solid var(--hairline); }
+.maplibregl-ctrl-attrib { font-family: var(--font-sans); font-size: 10px; }
+.maplibregl-popup-content { font-family: var(--font-sans); border-radius: 8px; padding: 10px 12px; box-shadow: var(--shadow-raised); }

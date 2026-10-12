@@ -61,6 +61,13 @@ export async function getDemoPersona(): Promise<DemoPersona | null> {
 }
 
 export async function getSession(): Promise<FridgeySession | null> {
+  // Explicit demo selection uses synthetic data even while Clerk is signed in.
+  // Demo sessions never gain access to the live dataset API.
+  const persona = await getDemoPersona();
+  if (persona) {
+    const demo = DEMO_USERS[persona];
+    return { mode: "demo", persona, onboarded: true, ...demo };
+  }
   if (isClerkConfigured()) {
     // Dynamic import keeps Clerk out of the bundle when it is not configured.
     const { auth, currentUser } = await import("@clerk/nextjs/server");
@@ -118,11 +125,6 @@ export async function getSession(): Promise<FridgeySession | null> {
           },
         ],
       };
-  }
-  const persona = await getDemoPersona();
-  if (persona) {
-    const demo = DEMO_USERS[persona];
-    return { mode: "demo", persona, onboarded: true, ...demo };
   }
   return null;
 }
